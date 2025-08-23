@@ -1,0 +1,330 @@
+{
+  "name": "WF19: Complete Content Generation Pipeline",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "content-pipeline",
+        "options": {
+          "binaryData": false
+        }
+      },
+      "id": "webhook-content-pipeline",
+      "name": "Content Pipeline Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [300, 300]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "transcript",
+              "name": "transcript",
+              "value": "={{ $json.body.transcript }}",
+              "type": "string"
+            },
+            {
+              "id": "content_type",
+              "name": "content_type",
+              "value": "={{ $json.body.content_type || 'general' }}",
+              "type": "string"
+            },
+            {
+              "id": "target_audience",
+              "name": "target_audience",
+              "value": "={{ $json.body.target_audience || 'general' }}",
+              "type": "string"
+            },
+            {
+              "id": "additional_context",
+              "name": "additional_context",
+              "value": "={{ $json.body.additional_context || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "request_id",
+              "name": "request_id",
+              "value": "={{ $randomString(12) }}",
+              "type": "string"
+            },
+            {
+              "id": "timestamp",
+              "name": "timestamp",
+              "value": "={{ $now }}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "id": "prepare-content-request",
+      "name": "Prepare Content Request",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [540, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.transcript }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "id": "validate-transcript",
+      "name": "Validate Transcript",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [780, 300]
+    },
+    {
+      "parameters": {
+        "url": "=https://ai-tool-pool--content-generation-service-content-gen-947ec6-dev.modal.run/generate/all-content",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "User-Agent",
+              "value": "n8n-content-pipeline/1.0"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "jsonParameters": {
+          "parameters": [
+            {
+              "name": "transcript",
+              "value": "={{ $json.transcript }}"
+            },
+            {
+              "name": "content_type",
+              "value": "={{ $json.content_type }}"
+            },
+            {
+              "name": "target_audience",
+              "value": "={{ $json.target_audience }}"
+            },
+            {
+              "name": "additional_context",
+              "value": "={{ $json.additional_context }}"
+            }
+          ]
+        }
+      },
+      "id": "generate-all-content",
+      "name": "Generate All Content",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1020, 200]
+    },
+    {
+      "parameters": {
+        "url": "=https://robertmcasper--mcp-toolbox-flux.modal.run",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "jsonParameters": {
+          "parameters": [
+            {
+              "name": "prompt",
+              "value": "={{ $node['Generate All Content'].json.image_prompts.split('\\n')[0] }}"
+            }
+          ]
+        }
+      },
+      "id": "generate-flux-image",
+      "name": "Generate FLUX Image",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1260, 200]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "success",
+              "name": "success",
+              "value": "=true",
+              "type": "boolean"
+            },
+            {
+              "id": "request_id",
+              "name": "request_id",
+              "value": "={{ $node['Prepare Content Request'].json.request_id }}",
+              "type": "string"
+            },
+            {
+              "id": "titles",
+              "name": "titles",
+              "value": "={{ $node['Generate All Content'].json.titles }}",
+              "type": "string"
+            },
+            {
+              "id": "descriptions",
+              "name": "descriptions",
+              "value": "={{ $node['Generate All Content'].json.descriptions }}",
+              "type": "string"
+            },
+            {
+              "id": "image_prompts",
+              "name": "image_prompts",
+              "value": "={{ $node['Generate All Content'].json.image_prompts }}",
+              "type": "string"
+            },
+            {
+              "id": "video_prompts",
+              "name": "video_prompts",
+              "value": "={{ $node['Generate All Content'].json.video_prompts }}",
+              "type": "string"
+            },
+            {
+              "id": "generated_image",
+              "name": "generated_image",
+              "value": "={{ $node['Generate FLUX Image'].json }}",
+              "type": "object"
+            },
+            {
+              "id": "generation_time",
+              "name": "generation_time",
+              "value": "={{ $node['Generate All Content'].json.total_generation_time }}",
+              "type": "number"
+            },
+            {
+              "id": "processing_completed_at",
+              "name": "processing_completed_at",
+              "value": "={{ $now }}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "id": "format-complete-response",
+      "name": "Format Complete Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [1500, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true, \"request_id\": $json.request_id, \"content\": { \"titles\": $json.titles, \"descriptions\": $json.descriptions, \"image_prompts\": $json.image_prompts, \"video_prompts\": $json.video_prompts, \"generated_image\": $json.generated_image }, \"metadata\": { \"generation_time_seconds\": $json.generation_time, \"processing_completed_at\": $json.processing_completed_at, \"content_type\": $node['Prepare Content Request'].json.content_type, \"target_audience\": $node['Prepare Content Request'].json.target_audience } } }}"
+      },
+      "id": "success-response",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1740, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": false, \"error\": \"Invalid or missing transcript\", \"request_id\": $node['Prepare Content Request'].json.request_id, \"message\": \"Please provide a valid transcript for content generation\" } }}"
+      },
+      "id": "validation-error-response",
+      "name": "Validation Error Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1020, 400]
+    }
+  ],
+  "connections": {
+    "Content Pipeline Webhook": {
+      "main": [
+        [
+          {
+            "node": "Prepare Content Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Content Request": {
+      "main": [
+        [
+          {
+            "node": "Validate Transcript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Transcript": {
+      "main": [
+        [
+          {
+            "node": "Generate All Content",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Validation Error Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate All Content": {
+      "main": [
+        [
+          {
+            "node": "Generate FLUX Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate FLUX Image": {
+      "main": [
+        [
+          {
+            "node": "Format Complete Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Complete Response": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "parameters": {},
+  "settings": {
+    "saveExecutionProgress": "manual",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all"
+  }
+}

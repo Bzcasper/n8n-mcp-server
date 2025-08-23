@@ -1,0 +1,202 @@
+{
+  "name": "WF10: RAG with Qdrant (HTTP API)",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "qdrant-rag",
+        "options": {}
+      },
+      "id": "webhook-rag",
+      "name": "Webhook Ingest/Query",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [140, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Decide mode ingest vs query via action field\nconst action = $json.action || 'ingest';\nreturn { json: { action, text: $json.text, question: $json.question, namespace: $json.namespace || 'default' } };"
+      },
+      "id": "code-mode",
+      "name": "Determine Mode",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [360, 400]
+    },
+    {
+      "parameters": { "model": "text-embedding-3-small", "options": {} },
+      "id": "openai-embed",
+      "name": "Embeddings OpenAI",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1,
+      "position": [600, 280],
+      "credentials": {
+        "openAiApi": {
+          "id": "__REPLACE_OPENAI_CRED_ID__",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare Qdrant upsert request body\nconst emb = $json.output?.data?.[0]?.embedding || [];\nreturn { json: { upsert: { vectors: [ { id: Date.now().toString(), vector: emb, payload: { text: $json.text } } ] } } };"
+      },
+      "id": "code-upsert",
+      "name": "Prep Upsert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [820, 200]
+    },
+    {
+      "parameters": {
+        "requestMethod": "PUT",
+        "url": "https://__QDRANT_HOST__/collections/n8n_rag",
+        "jsonParameters": true,
+        "options": {},
+        "bodyParametersJson": "={ \n  \"name\": \"n8n_rag\",\n  \"vectors\": { \"size\": 1536, \"distance\": \"Cosine\" }\n}"
+      },
+      "id": "http-create-collection",
+      "name": "Qdrant Create Collection",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [820, 40],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__REPLACE_QDRANT_APIKEY_ID__",
+          "name": "Qdrant API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "requestMethod": "POST",
+        "url": "https://__QDRANT_HOST__/collections/n8n_rag/points?wait=true",
+        "jsonParameters": true,
+        "options": {},
+        "bodyParametersJson": "={{ JSON.stringify($json.upsert) }}"
+      },
+      "id": "http-upsert",
+      "name": "Qdrant Upsert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [1060, 200],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__REPLACE_QDRANT_APIKEY_ID__",
+          "name": "Qdrant API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare search vector from embedding of question\nconst emb = $json.output?.data?.[0]?.embedding || [];\nreturn { json: { search: { vector: emb, limit: 5 } } };"
+      },
+      "id": "code-search",
+      "name": "Prep Search",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [820, 560]
+    },
+    {
+      "parameters": {
+        "requestMethod": "POST",
+        "url": "https://__QDRANT_HOST__/collections/n8n_rag/points/search",
+        "jsonParameters": true,
+        "options": {},
+        "bodyParametersJson": "={{ JSON.stringify($json.search) }}"
+      },
+      "id": "http-search",
+      "name": "Qdrant Search",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [1060, 560],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__REPLACE_QDRANT_APIKEY_ID__",
+          "name": "Qdrant API Key"
+        }
+      }
+    },
+    {
+      "parameters": { "model": "gpt-4o-mini", "options": { "temperature": 0 } },
+      "id": "chat-answer",
+      "name": "Chat Compose Answer",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [1280, 560],
+      "credentials": {
+        "openAiApi": {
+          "id": "__REPLACE_OPENAI_CRED_ID__",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "mode",
+              "value": "={{ $json.action }}",
+              "type": "string"
+            },
+            {
+              "id": "a2",
+              "name": "answer",
+              "value": "={{ $json.response || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "a3",
+              "name": "matches",
+              "value": "={{ JSON.stringify($json.result || $json) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-output",
+      "name": "Set Output",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [1500, 560]
+    }
+  ],
+  "connections": {
+    "Webhook Ingest/Query": {
+      "main": [[{ "node": "Determine Mode", "type": "main", "index": 0 }]]
+    },
+    "Determine Mode": {
+      "main": [[{ "node": "Embeddings OpenAI", "type": "main", "index": 0 }]]
+    },
+    "Embeddings OpenAI": {
+      "main": [
+        [
+          { "node": "Prep Upsert", "type": "main", "index": 0 },
+          { "node": "Prep Search", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Prep Upsert": {
+      "main": [[{ "node": "Qdrant Upsert", "type": "main", "index": 0 }]]
+    },
+    "Qdrant Upsert": {
+      "main": [[{ "node": "Set Output", "type": "main", "index": 0 }]]
+    },
+    "Prep Search": {
+      "main": [[{ "node": "Qdrant Search", "type": "main", "index": 0 }]]
+    },
+    "Qdrant Search": {
+      "main": [[{ "node": "Chat Compose Answer", "type": "main", "index": 0 }]]
+    },
+    "Chat Compose Answer": {
+      "main": [[{ "node": "Set Output", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "pinData": {},
+  "tags": ["rag", "qdrant", "vector", "search"]
+}

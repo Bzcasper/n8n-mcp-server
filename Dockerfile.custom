@@ -1,0 +1,35 @@
+FROM node:20-alpine
+
+# Install necessary system dependencies
+RUN apk add --no-cache \
+    curl \
+    bash \
+    && rm -rf /var/cache/apk/*
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install only production dependencies (skip prepare script)
+RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
+
+# Copy already built application (built on host)
+COPY build ./build
+
+# Create data directory
+RUN mkdir -p /app/data && chown -R node:node /app
+
+# Switch to non-root user
+USER node
+
+# Expose MCP server port
+EXPOSE 3000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD node -e "require('http').get('http://localhost:3000/health', (res) => process.exit(res.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"
+
+# Start the MCP server
+CMD ["node", "build/index.js"]

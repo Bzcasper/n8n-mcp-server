@@ -1,0 +1,666 @@
+{
+  "name": "WF18: Modal MCP FLUX Image Generation",
+  "active": true,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "modal-flux-generate",
+        "options": {
+          "binaryData": true,
+          "ignoreBots": false
+        }
+      },
+      "id": "webhook-flux-generation",
+      "name": "FLUX Generation Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [300, 300],
+      "webhookId": "modal-flux-generate"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "request_id",
+              "name": "request_id",
+              "value": "={{ $uuid() }}",
+              "type": "string"
+            },
+            {
+              "id": "received_at",
+              "name": "received_at",
+              "value": "={{ $now }}",
+              "type": "string"
+            },
+            {
+              "id": "prompt",
+              "name": "prompt",
+              "value": "={{ $json.body.prompt || $json.prompt }}",
+              "type": "string"
+            },
+            {
+              "id": "return_format",
+              "name": "return_format",
+              "value": "={{ $json.body.return_format || $json.return_format || 'base64' }}",
+              "type": "string"
+            },
+            {
+              "id": "webhook_callback",
+              "name": "webhook_callback",
+              "value": "={{ $json.body.webhook_callback || $json.webhook_callback || null }}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "id": "extract-request-data",
+      "name": "Extract Request Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [540, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "prompt_validation",
+              "leftValue": "={{ $json.prompt }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEqual",
+                "rightType": "any"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "validate-input",
+      "name": "Validate Input",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [780, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://modal-mcp-integration:8000/api/v1/flux/generate",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Request-ID",
+              "value": "={{ $json.request_id }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "prompt",
+              "value": "={{ $json.prompt }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 300000,
+          "retry": {
+            "enabled": true,
+            "maxTries": 2
+          }
+        }
+      },
+      "id": "call-modal-flux-api",
+      "name": "Call Modal FLUX API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1020, 220]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "error_response",
+              "name": "success",
+              "value": false,
+              "type": "boolean"
+            },
+            {
+              "id": "error_message",
+              "name": "error",
+              "value": "Missing required field: prompt",
+              "type": "string"
+            },
+            {
+              "id": "request_id",
+              "name": "request_id",
+              "value": "={{ $json.request_id }}",
+              "type": "string"
+            },
+            {
+              "id": "timestamp",
+              "name": "timestamp",
+              "value": "={{ $now }}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "id": "error-invalid-input",
+      "name": "Error: Invalid Input",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1020, 380]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "success_check",
+              "leftValue": "={{ $json.success }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equal"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "check-api-success",
+      "name": "Check API Success",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1260, 220]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "format_check",
+              "leftValue": "={{ $('Extract Request Data').item.json.return_format }}",
+              "rightValue": "binary",
+              "operator": {
+                "type": "string",
+                "operation": "equal"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "check-return-format",
+      "name": "Check Return Format",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1500, 140]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "success",
+              "name": "success",
+              "value": "={{ $json.success }}",
+              "type": "boolean"
+            },
+            {
+              "id": "request_id",
+              "name": "request_id",
+              "value": "={{ $('Extract Request Data').item.json.request_id }}",
+              "type": "string"
+            },
+            {
+              "id": "execution_id",
+              "name": "execution_id",
+              "value": "={{ $json.execution_id }}",
+              "type": "string"
+            },
+            {
+              "id": "image_data",
+              "name": "image_data",
+              "value": "={{ $json.image_data }}",
+              "type": "string"
+            },
+            {
+              "id": "image_format",
+              "name": "image_format",
+              "value": "={{ $json.image_format }}",
+              "type": "string"
+            },
+            {
+              "id": "timestamp",
+              "name": "timestamp",
+              "value": "={{ $json.timestamp }}",
+              "type": "string"
+            },
+            {
+              "id": "metadata",
+              "name": "metadata",
+              "value": "={{ $json.metadata }}",
+              "type": "object"
+            },
+            {
+              "id": "webhook_url",
+              "name": "webhook_url",
+              "value": "={{ $('FLUX Generation Webhook').item.json.headers.host }}/webhook/modal-flux-generate",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "id": "format-base64-response",
+      "name": "Format Base64 Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1740, 220]
+    },
+    {
+      "parameters": {
+        "mode": "jsonToBinary",
+        "convertAllData": false,
+        "sourceProperty": "image_data",
+        "options": {
+          "fileName": "generated_image.{{ $json.image_format.toLowerCase() }}",
+          "mimeType": "image/{{ $json.image_format.toLowerCase() }}"
+        }
+      },
+      "id": "convert-to-binary",
+      "name": "Convert to Binary",
+      "type": "n8n-nodes-base.convertToBinary",
+      "typeVersion": 1.1,
+      "position": [1740, 60]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "success",
+              "name": "success",
+              "value": true,
+              "type": "boolean"
+            },
+            {
+              "id": "request_id",
+              "name": "request_id",
+              "value": "={{ $('Extract Request Data').item.json.request_id }}",
+              "type": "string"
+            },
+            {
+              "id": "execution_id",
+              "name": "execution_id",
+              "value": "={{ $('Call Modal FLUX API').item.json.execution_id }}",
+              "type": "string"
+            },
+            {
+              "id": "message",
+              "name": "message",
+              "value": "Image generated successfully",
+              "type": "string"
+            },
+            {
+              "id": "image_format",
+              "name": "image_format",
+              "value": "={{ $('Call Modal FLUX API').item.json.image_format }}",
+              "type": "string"
+            },
+            {
+              "id": "timestamp",
+              "name": "timestamp",
+              "value": "={{ $('Call Modal FLUX API').item.json.timestamp }}",
+              "type": "string"
+            },
+            {
+              "id": "metadata",
+              "name": "metadata",
+              "value": "={{ $('Call Modal FLUX API').item.json.metadata }}",
+              "type": "object"
+            }
+          ]
+        }
+      },
+      "id": "format-binary-response",
+      "name": "Format Binary Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1980, 60]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "success",
+              "name": "success",
+              "value": false,
+              "type": "boolean"
+            },
+            {
+              "id": "request_id",
+              "name": "request_id",
+              "value": "={{ $('Extract Request Data').item.json.request_id }}",
+              "type": "string"
+            },
+            {
+              "id": "error",
+              "name": "error",
+              "value": "{{ $json.error || 'Image generation failed' }}",
+              "type": "string"
+            },
+            {
+              "id": "timestamp",
+              "name": "timestamp",
+              "value": "={{ $now }}",
+              "type": "string"
+            },
+            {
+              "id": "execution_id",
+              "name": "execution_id",
+              "value": "={{ $json.execution_id || null }}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "id": "format-api-error-response",
+      "name": "Format API Error Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1500, 300]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "success",
+              "name": "success",
+              "value": false,
+              "type": "boolean"
+            },
+            {
+              "id": "request_id",
+              "name": "request_id",
+              "value": "={{ $('Extract Request Data').item.json.request_id }}",
+              "type": "string"
+            },
+            {
+              "id": "error",
+              "name": "error",
+              "value": "API call failed: {{ $json.message || $json.error || 'Unknown error' }}",
+              "type": "string"
+            },
+            {
+              "id": "timestamp",
+              "name": "timestamp",
+              "value": "={{ $now }}",
+              "type": "string"
+            },
+            {
+              "id": "status_code",
+              "name": "status_code",
+              "value": "={{ $json.statusCode || 500 }}",
+              "type": "number"
+            }
+          ]
+        }
+      },
+      "id": "format-http-error-response",
+      "name": "Format HTTP Error Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1260, 380]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combinationMode": "multiplex",
+        "options": {}
+      },
+      "id": "merge-all-responses",
+      "name": "Merge All Responses",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [1860, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {
+          "responseCode": "={{ $json.success === true ? 200 : ($json.status_code || 400) }}"
+        }
+      },
+      "id": "respond-to-webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [2100, 300]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "FLUX Generation Webhook": {
+      "main": [
+        [
+          {
+            "node": "Extract Request Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Request Data": {
+      "main": [
+        [
+          {
+            "node": "Validate Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Input": {
+      "main": [
+        [
+          {
+            "node": "Call Modal FLUX API",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error: Invalid Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Modal FLUX API": {
+      "main": [
+        [
+          {
+            "node": "Check API Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format HTTP Error Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error: Invalid Input": {
+      "main": [
+        [
+          {
+            "node": "Merge All Responses",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Check API Success": {
+      "main": [
+        [
+          {
+            "node": "Check Return Format",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format API Error Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Return Format": {
+      "main": [
+        [
+          {
+            "node": "Convert to Binary",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Base64 Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Base64 Response": {
+      "main": [
+        [
+          {
+            "node": "Merge All Responses",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert to Binary": {
+      "main": [
+        [
+          {
+            "node": "Format Binary Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Binary Response": {
+      "main": [
+        [
+          {
+            "node": "Merge All Responses",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format API Error Response": {
+      "main": [
+        [
+          {
+            "node": "Merge All Responses",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Format HTTP Error Response": {
+      "main": [
+        [
+          {
+            "node": "Merge All Responses",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge All Responses": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "createdAt": "2024-01-20T10:00:00.000Z",
+      "updatedAt": "2024-01-20T10:00:00.000Z",
+      "id": "modal-mcp",
+      "name": "Modal MCP"
+    },
+    {
+      "createdAt": "2024-01-20T10:00:00.000Z",
+      "updatedAt": "2024-01-20T10:00:00.000Z",
+      "id": "flux-generation",
+      "name": "FLUX Generation"
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2025-01-23T10:00:00.000Z",
+  "versionId": "1"
+}

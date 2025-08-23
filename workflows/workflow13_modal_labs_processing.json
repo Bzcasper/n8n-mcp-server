@@ -1,0 +1,206 @@
+{
+  "name": "WF13: Modal Labs AI Processing Pipeline",
+  "active": true,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "modal-ai-process",
+        "options": {
+          "binaryData": true
+        }
+      },
+      "id": "webhook-modal",
+      "name": "Modal Labs Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [300, 300]
+    },
+    {
+      "parameters": {
+        "url": "=https://{{$parameter.modal_endpoint}}/api/v1/process",
+        "authentication": "headerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$credentials.modal_api.token}}"
+            },
+            {
+              "name": "Content-Type", 
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "jsonParameters": {
+          "parameters": [
+            {
+              "name": "input_data",
+              "value": "={{ $json.body }}"
+            },
+            {
+              "name": "model_name",
+              "value": "=claude-3-sonnet"
+            },
+            {
+              "name": "task_type", 
+              "value": "=text_processing"
+            }
+          ]
+        }
+      },
+      "id": "modal-api-call",
+      "name": "Modal Labs API Call",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [540, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__REPLACE_MODAL_CRED_ID__",
+          "name": "Modal Labs API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "response_id",
+              "name": "response_id", 
+              "value": "={{ $json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "status",
+              "name": "status",
+              "value": "={{ $json.status }}",
+              "type": "string" 
+            },
+            {
+              "id": "result",
+              "name": "result",
+              "value": "={{ $json.result || 'Processing...' }}",
+              "type": "string"
+            },
+            {
+              "id": "timestamp",
+              "name": "timestamp",
+              "value": "={{ $now }}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "id": "format-response",
+      "name": "Format Modal Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [780, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.status }}",
+              "operation": "equal",
+              "value2": "completed"
+            }
+          ]
+        }
+      },
+      "id": "check-status",
+      "name": "Check Processing Status",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1020, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true, \"data\": $json.result, \"response_id\": $json.response_id, \"timestamp\": $json.timestamp } }}"
+      },
+      "id": "success-response",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1260, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": false, \"status\": $json.status, \"response_id\": $json.response_id, \"message\": \"Processing in progress, check back later\" } }}"
+      },
+      "id": "processing-response",
+      "name": "Processing Response", 
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1260, 400]
+    }
+  ],
+  "connections": {
+    "Modal Labs Webhook": {
+      "main": [
+        [
+          {
+            "node": "Modal Labs API Call",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Modal Labs API Call": {
+      "main": [
+        [
+          {
+            "node": "Format Modal Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Modal Response": {
+      "main": [
+        [
+          {
+            "node": "Check Processing Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Processing Status": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Processing Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "parameters": {
+    "modal_endpoint": "https://your-app.modal.run"
+  },
+  "settings": {
+    "saveExecutionProgress": "manual",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all"
+  }
+}

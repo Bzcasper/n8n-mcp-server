@@ -1,0 +1,98 @@
+{
+  "name": "WF7: Qwen Embeddings Vector Search (In-Memory)",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "qwen-embed",
+        "options": {}
+      },
+      "id": "webhook-qwen",
+      "name": "Webhook Text Input",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [200, 200]
+    },
+    {
+      "parameters": {
+        "requestMethod": "POST",
+        "url": "https://dashscope.aliyuncs.com/api/v1/services/embeddings/text-embedding/latest",
+        "jsonParameters": true,
+        "options": {},
+        "bodyParametersJson": "={ \n  \"model\": \"text-embedding-v1\",\n  \"input\": [$json.text || $json.body || $json.data || '']\n}"
+      },
+      "id": "http-qwen-embed",
+      "name": "HTTP Qwen Embedding",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [450, 200],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__REPLACE_QWEN_API_KEY_ID__",
+          "name": "Qwen API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "memoryKey": { "__rl": true, "mode": "list", "value": "qwen_vectors" }
+      },
+      "id": "vector-insert",
+      "name": "Insert Vector",
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreInMemory",
+      "typeVersion": 1.2,
+      "position": [700, 200]
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolName": "qwen_vector_search",
+        "memoryKey": { "__rl": true, "mode": "list", "value": "qwen_vectors" }
+      },
+      "id": "vector-retrieve",
+      "name": "Retrieve Vector",
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreInMemory",
+      "typeVersion": 1.2,
+      "position": [950, 200]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "embed",
+              "name": "embedding_length",
+              "value": "={{ ($json.output?.data?.[0]?.embedding || []).length }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-out",
+      "name": "Set Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [1200, 200]
+    }
+  ],
+  "connections": {
+    "Webhook Text Input": {
+      "main": [[{ "node": "HTTP Qwen Embedding", "type": "main", "index": 0 }]]
+    },
+    "HTTP Qwen Embedding": {
+      "main": [[{ "node": "Insert Vector", "type": "main", "index": 0 }]]
+    },
+    "Insert Vector": {
+      "main": [[{ "node": "Retrieve Vector", "type": "main", "index": 0 }]]
+    },
+    "Retrieve Vector": {
+      "main": [[{ "node": "Set Response", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "pinData": {},
+  "tags": ["qwen", "embeddings", "vector"]
+}

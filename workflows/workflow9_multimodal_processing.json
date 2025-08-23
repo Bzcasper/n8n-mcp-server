@@ -1,0 +1,167 @@
+{
+  "name": "WF9: Multi-Modal Content Processing",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "multi-modal",
+        "options": { "binaryData": true }
+      },
+      "id": "webhook-mm",
+      "name": "Webhook Multi-Modal",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [140, 400]
+    },
+    {
+      "parameters": {
+        "operation": "transcribe",
+        "resource": "audio",
+        "binaryPropertyName": "audio",
+        "options": {}
+      },
+      "id": "audio-transcribe",
+      "name": "Audio Transcribe",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1,
+      "position": [420, 260],
+      "credentials": {
+        "openAiApi": {
+          "id": "__REPLACE_OPENAI_CRED_ID__",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare a vision prompt using a base64 image in binary property 'image'\nconst image = $binary.image;\nconst b64 = image ? image.data : '';\nreturn { json: { messages: [ { role: 'user', content: [ { type: 'input_text', text: $json.prompt || 'Describe the image concisely.' }, { type: 'input_image', image_base64: b64 } ] } ] } };"
+      },
+      "id": "code-vision",
+      "name": "Prep Vision Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [420, 400]
+    },
+    {
+      "parameters": {
+        "model": { "__rl": true, "mode": "list", "value": "gpt-4o-mini" },
+        "options": {}
+      },
+      "id": "vision-chat",
+      "name": "Vision Chat",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [660, 400],
+      "credentials": {
+        "openAiApi": {
+          "id": "__REPLACE_OPENAI_CRED_ID__",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Summarize provided text field 'text'\nreturn { json: { prompt: `Summarize: ${$json.text || 'No text'}` } };"
+      },
+      "id": "code-text",
+      "name": "Prep Text Summary Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [420, 540]
+    },
+    {
+      "parameters": {
+        "model": { "__rl": true, "mode": "list", "value": "gpt-4o-mini" },
+        "options": { "temperature": 0.3 }
+      },
+      "id": "text-summary",
+      "name": "Text Summary",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [660, 540],
+      "credentials": {
+        "openAiApi": {
+          "id": "__REPLACE_OPENAI_CRED_ID__",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "passThrough",
+        "combineBy": "merge",
+        "options": {}
+      },
+      "id": "merge-results",
+      "name": "Merge Results",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2,
+      "position": [900, 400]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "tr",
+              "name": "transcript",
+              "value": "={{ $items(\"Audio Transcribe\")[0].json.text }}",
+              "type": "string"
+            },
+            {
+              "id": "img",
+              "name": "image_description",
+              "value": "={{ $items(\"Vision Chat\")[0].json.response || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "sum",
+              "name": "text_summary",
+              "value": "={{ $items(\"Text Summary\")[0].json.response || '' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-final",
+      "name": "Set Final Output",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [1120, 400]
+    }
+  ],
+  "connections": {
+    "Webhook Multi-Modal": {
+      "main": [
+        [
+          { "node": "Audio Transcribe", "type": "main", "index": 0 },
+          { "node": "Prep Vision Prompt", "type": "main", "index": 0 },
+          { "node": "Prep Text Summary Prompt", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Audio Transcribe": {
+      "main": [[{ "node": "Merge Results", "type": "main", "index": 0 }]]
+    },
+    "Prep Vision Prompt": {
+      "main": [[{ "node": "Vision Chat", "type": "main", "index": 0 }]]
+    },
+    "Vision Chat": {
+      "main": [[{ "node": "Merge Results", "type": "main", "index": 0 }]]
+    },
+    "Prep Text Summary Prompt": {
+      "main": [[{ "node": "Text Summary", "type": "main", "index": 0 }]]
+    },
+    "Text Summary": {
+      "main": [[{ "node": "Merge Results", "type": "main", "index": 0 }]]
+    },
+    "Merge Results": {
+      "main": [[{ "node": "Set Final Output", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "pinData": {},
+  "tags": ["multi-modal", "audio", "image", "text"]
+}

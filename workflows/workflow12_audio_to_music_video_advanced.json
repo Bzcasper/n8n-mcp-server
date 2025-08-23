@@ -1,0 +1,283 @@
+{
+  "name": "WF12: Audio -> Multi-Scene Music Video (Advanced)",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "music-video-advanced",
+        "options": { "binaryData": true }
+      },
+      "id": "webhook-adv",
+      "name": "Webhook Audio Upload",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [120, 320]
+    },
+    {
+      "parameters": {
+        "operation": "transcribe",
+        "resource": "audio",
+        "binaryPropertyName": "audio",
+        "options": {}
+      },
+      "id": "whisper",
+      "name": "Transcribe Audio (Whisper)",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1,
+      "position": [360, 320],
+      "credentials": {
+        "openAiApi": {
+          "id": "__REPLACE_OPENAI_CRED_ID__",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Segment transcript into ~3 scene prompts (simple heuristic)\\nconst t = ($json.text||'').replace(/\\s+/g,' ').trim();\\nconst maxScenes = 3;\\nconst chunkLen = Math.ceil(t.length / maxScenes) || 1;\\nconst scenes = [];\\nfor (let i=0;i<maxScenes;i++){ const seg = t.slice(i*chunkLen,(i+1)*chunkLen).trim(); if(!seg) break; scenes.push({ index:i, prompt: 'Scene ' + (i+1) + ': ' + seg.slice(0,240) }); }\\nreturn { json: { scenes, sceneIndex:0, images: [] } };"
+      },
+      "id": "segment",
+      "name": "Segment Transcript",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [600, 320]
+    },
+    {
+      "parameters": { "batchSize": 1 },
+      "id": "batch",
+      "name": "Iterate Scenes",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 1,
+      "position": [840, 320]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Current batch item is a scene object with prompt.\nreturn { json: { scene: $json, prompt: ($json.prompt || '').slice(0,1000) } };"
+      },
+      "id": "scene-prompt",
+      "name": "Build Scene Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1080, 260]
+    },
+    {
+      "parameters": {
+        "requestMethod": "POST",
+        "url": "https://api.openai.com/v1/images/generations",
+        "jsonParameters": true,
+        "options": {},
+        "bodyParametersJson": "={ \n  \"model\": \"gpt-image-1\",\n  \"prompt\": $json.prompt,\n  \"size\": \"512x512\"\n}"
+      },
+      "id": "gen-image",
+      "name": "Generate Scene Image",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [1320, 260],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__REPLACE_OPENAI_HTTP_CRED_ID__",
+          "name": "OpenAI HTTP"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Append base64 to images array accumulated in paired static data via items.\nconst data = $json.data && $json.data[0]; const b64 = data?.b64_json || ''; const images = ($items(0,0).json.images)||[]; images.push({ index: $items(1,0).json.scene.index, b64 }); return { json: { images } };"
+      },
+      "id": "collect",
+      "name": "Collect Image",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1560, 260]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge images array back with original segmentation context.\nconst seg = $items(0,0).json; const images = $json.images; return { json: { scenes: seg.scenes, images, progress: images.length + '/' + seg.scenes.length } };"
+      },
+      "id": "merge-progress",
+      "name": "Merge Progress",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1800, 260]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.images.length }}",
+              "operation": "smaller",
+              "value2": "={{ $json.scenes.length }}"
+            }
+          ]
+        }
+      },
+      "id": "if-more",
+      "name": "IF More Scenes?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [2040, 260]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare payload for video assembly service with multiple images.\nreturn { json: { transcript: $items(1,0).json.text, images: $json.images.map(i=>i.b64) } };"
+      },
+      "id": "prep-video",
+      "name": "Prepare Video Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2280, 380]
+    },
+    {
+      "parameters": {
+        "requestMethod": "POST",
+        "url": "https://__VIDEO_ASSEMBLY_HOST__/api/v1/build",
+        "jsonParameters": true,
+        "options": {},
+        "bodyParametersJson": "={{ JSON.stringify({ transcript: $json.transcript, images: $json.images }) }}"
+      },
+      "id": "video-build",
+      "name": "Assemble Video",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [2520, 380],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__REPLACE_VIDEO_SERVICE_CRED_ID__",
+          "name": "Video Service Key"
+        }
+      }
+    },
+    {
+      "parameters": { "amount": 10, "unit": "seconds" },
+      "id": "wait",
+      "name": "Wait 10s",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [2760, 380],
+      "webhookId": "__AUTO__"
+    },
+    {
+      "parameters": {
+        "requestMethod": "GET",
+        "url": "https://__VIDEO_ASSEMBLY_HOST__/api/v1/jobs/{{$json.job_id}}",
+        "jsonParameters": true,
+        "options": {}
+      },
+      "id": "check",
+      "name": "Check Video Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [3000, 380],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__REPLACE_VIDEO_SERVICE_CRED_ID__",
+          "name": "Video Service Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.status }}",
+              "operation": "equals",
+              "value2": "ready"
+            }
+          ]
+        }
+      },
+      "id": "if-ready",
+      "name": "IF Ready?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [3240, 380]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "vid1",
+              "name": "video_url",
+              "value": "={{ $json.video_url || $json.url || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "vid2",
+              "name": "status",
+              "value": "={{ $json.status }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-out",
+      "name": "Set Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [3480, 380]
+    }
+  ],
+  "connections": {
+    "Webhook Audio Upload": {
+      "main": [
+        [{ "node": "Transcribe Audio (Whisper)", "type": "main", "index": 0 }]
+      ]
+    },
+    "Transcribe Audio (Whisper)": {
+      "main": [[{ "node": "Segment Transcript", "type": "main", "index": 0 }]]
+    },
+    "Segment Transcript": {
+      "main": [[{ "node": "Iterate Scenes", "type": "main", "index": 0 }]]
+    },
+    "Iterate Scenes": {
+      "main": [
+        [{ "node": "Build Scene Prompt", "type": "main", "index": 0 }],
+        [{ "node": "Prepare Video Payload", "type": "main", "index": 0 }]
+      ]
+    },
+    "Build Scene Prompt": {
+      "main": [[{ "node": "Generate Scene Image", "type": "main", "index": 0 }]]
+    },
+    "Generate Scene Image": {
+      "main": [[{ "node": "Collect Image", "type": "main", "index": 0 }]]
+    },
+    "Collect Image": {
+      "main": [[{ "node": "Merge Progress", "type": "main", "index": 0 }]]
+    },
+    "Merge Progress": {
+      "main": [[{ "node": "IF More Scenes?", "type": "main", "index": 0 }]]
+    },
+    "IF More Scenes?": {
+      "main": [
+        [{ "node": "Iterate Scenes", "type": "main", "index": 0 }],
+        [{ "node": "Prepare Video Payload", "type": "main", "index": 0 }]
+      ]
+    },
+    "Prepare Video Payload": {
+      "main": [[{ "node": "Assemble Video", "type": "main", "index": 0 }]]
+    },
+    "Assemble Video": {
+      "main": [[{ "node": "Wait 10s", "type": "main", "index": 0 }]]
+    },
+    "Wait 10s": {
+      "main": [[{ "node": "Check Video Status", "type": "main", "index": 0 }]]
+    },
+    "Check Video Status": {
+      "main": [[{ "node": "IF Ready?", "type": "main", "index": 0 }]]
+    },
+    "IF Ready?": {
+      "main": [
+        [{ "node": "Set Response", "type": "main", "index": 0 }],
+        [{ "node": "Wait 10s", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "pinData": {},
+  "tags": ["audio", "video", "advanced", "loop"]
+}

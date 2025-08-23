@@ -1,0 +1,78 @@
+{
+  "name": "WF6: Audio Transcription (Whisper)",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "audio-transcribe",
+        "options": {
+          "binaryData": true
+        }
+      },
+      "id": "webhook-audio",
+      "name": "Webhook Audio Upload",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [300, 300]
+    },
+    {
+      "parameters": {
+        "operation": "transcribe",
+        "resource": "audio",
+        "binaryPropertyName": "audio",
+        "options": {}
+      },
+      "id": "openai-transcribe",
+      "name": "OpenAI Whisper Transcribe",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1,
+      "position": [540, 300],
+      "credentials": {
+        "openAiApi": {
+          "id": "__REPLACE_OPENAI_CRED_ID__",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "text",
+              "name": "transcript",
+              "value": "={{ $json.text }}",
+              "type": "string"
+            },
+            {
+              "id": "lang",
+              "name": "language",
+              "value": "={{ $json.language || 'unknown' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-response",
+      "name": "Set Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [780, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Audio Upload": {
+      "main": [
+        [{ "node": "OpenAI Whisper Transcribe", "type": "main", "index": 0 }]
+      ]
+    },
+    "OpenAI Whisper Transcribe": {
+      "main": [[{ "node": "Set Response", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "pinData": {},
+  "tags": ["audio", "whisper", "transcription"]
+}

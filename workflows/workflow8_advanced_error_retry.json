@@ -1,0 +1,174 @@
+{
+  "name": "WF8: Advanced Error Handling & Retry",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "retry-task",
+        "options": {}
+      },
+      "id": "webhook-retry",
+      "name": "Webhook Task Request",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [160, 300]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "attempt",
+              "name": "attempt",
+              "value": "=1",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "init-attempt",
+      "name": "Init Attempt",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [380, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Simulated task with retry until success or max attempts (3)\nconst failRate = 0.5;\nconst attempt = $json.attempt;\nif (Math.random() < failRate) {\n  return { json: { attempt, success: false, error: 'RandomFailure' } };\n} else {\n  return { json: { attempt, success: true, result: 'Task completed on attempt ' + attempt } };\n}\n"
+      },
+      "id": "code-task",
+      "name": "Execute Task",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [600, 300]
+    },
+    {
+      "parameters": {
+        "conditions": { "boolean": [{ "value1": "={{ $json.success }}" }] }
+      },
+      "id": "if-success",
+      "name": "IF Success?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [820, 300]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "inc",
+              "name": "attempt",
+              "value": "={{ $json.attempt + 1 }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "inc-attempt",
+      "name": "Inc Attempt",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [1060, 420]
+    },
+    {
+      "parameters": { "amount": 10, "unit": "seconds" },
+      "id": "wait-backoff",
+      "name": "Wait Backoff",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [1280, 420],
+      "webhookId": "__AUTO__"
+    },
+    {
+      "parameters": {
+        "jsCode": "return { json: { status: 'failed', attempts: $json.attempt, error: $json.error || 'Max attempts reached' } };"
+      },
+      "id": "code-fail",
+      "name": "Compose Failure",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1500, 420]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "final",
+              "name": "status",
+              "value": "=success",
+              "type": "string"
+            },
+            {
+              "id": "res",
+              "name": "result",
+              "value": "={{ $json.result }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-success",
+      "name": "Set Success",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [1060, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.attempt }}",
+              "operation": "largerEqual",
+              "value2": 3
+            }
+          ]
+        }
+      },
+      "id": "if-max",
+      "name": "IF Max Attempts?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1280, 420]
+    }
+  ],
+  "connections": {
+    "Webhook Task Request": {
+      "main": [[{ "node": "Init Attempt", "type": "main", "index": 0 }]]
+    },
+    "Init Attempt": {
+      "main": [[{ "node": "Execute Task", "type": "main", "index": 0 }]]
+    },
+    "Execute Task": {
+      "main": [[{ "node": "IF Success?", "type": "main", "index": 0 }]]
+    },
+    "IF Success?": {
+      "main": [
+        [{ "node": "Set Success", "type": "main", "index": 0 }],
+        [{ "node": "Inc Attempt", "type": "main", "index": 0 }]
+      ]
+    },
+    "Inc Attempt": {
+      "main": [[{ "node": "IF Max Attempts?", "type": "main", "index": 0 }]]
+    },
+    "IF Max Attempts?": {
+      "main": [
+        [{ "node": "Compose Failure", "type": "main", "index": 0 }],
+        [{ "node": "Wait Backoff", "type": "main", "index": 0 }]
+      ]
+    },
+    "Wait Backoff": {
+      "main": [[{ "node": "Execute Task", "type": "main", "index": 0 }]]
+    },
+    "Set Success": { "main": [] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "pinData": {},
+  "tags": ["retry", "error-handling"]
+}
