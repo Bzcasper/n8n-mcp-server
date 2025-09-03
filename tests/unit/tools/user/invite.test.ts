@@ -5,6 +5,7 @@
  */
 
 import { jest } from "@jest/globals";
+// Import the actual handlers to test MCP discovery
 import {
   InviteUsersHandler,
   getInviteUsersToolDefinition,
