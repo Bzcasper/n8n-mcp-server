@@ -1,8 +1,10 @@
 /**
  * Core Types Module
- * 
+ *
  * This module provides type definitions used throughout the application
  * and bridges compatibility with the MCP SDK.
+ *
+ * @format
  */
 
 // Tool definition for MCP tools
@@ -51,5 +53,18 @@ export interface Execution {
       runData: any;
     };
   };
+  [key: string]: any;
+}
+
+// Type for n8n user object
+export interface User {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: string;
+  isOwner?: boolean;
+  createdAt: string;
+  updatedAt: string;
   [key: string]: any;
 }

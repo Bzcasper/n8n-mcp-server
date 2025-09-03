@@ -1,68 +1,79 @@
 /**
  * Get Execution Tool
- * 
+ *
  * This tool retrieves detailed information about a specific workflow execution.
+ *
+ * @format
  */
 
-import { BaseExecutionToolHandler } from './base-handler.js';
-import { ToolCallResult, ToolDefinition } from '../../types/index.js';
-import { McpError } from '@modelcontextprotocol/sdk/types.js';
-import { ErrorCode } from '../../errors/error-codes.js';
-import { formatExecutionDetails } from '../../utils/execution-formatter.js';
+import { BaseExecutionToolHandler } from "./base-handler.js";
+import { ToolCallResult, ToolDefinition } from "../../types/index.js";
+import { McpError } from "@modelcontextprotocol/sdk/types.js";
+import { ErrorCode } from "../../errors/error-codes.js";
+import { formatExecutionDetails } from "../../utils/execution-formatter.js";
 
 /**
- * Handler for the get_execution tool
+ * Handler for the n8n-executions-get tool
  */
 export class GetExecutionHandler extends BaseExecutionToolHandler {
   /**
    * Execute the tool
-   * 
-   * @param args Tool arguments (executionId)
+   *
+   * @param args Tool arguments (id, includeData)
    * @returns Execution details
    */
   async execute(args: Record<string, any>): Promise<ToolCallResult> {
     return this.handleExecution(async () => {
       // Validate required parameters
-      if (!args.executionId) {
+      if (!args.id) {
         throw new McpError(
           ErrorCode.InvalidRequest,
-          'Missing required parameter: executionId'
+          "Missing required parameter: id"
         );
       }
-      
+
+      // Prepare query parameters
+      const params: Record<string, any> = {};
+      if (args.includeData !== undefined) {
+        params.includeData = args.includeData;
+      }
+
       // Get execution details
-      const execution = await this.apiService.getExecution(args.executionId);
-      
+      const execution = await this.apiService.getExecution(args.id, params);
+
       // Format the execution for display
       const formattedExecution = formatExecutionDetails(execution);
-      
+
       return this.formatSuccess(
         formattedExecution,
-        `Execution Details for ID: ${args.executionId}`
+        `Execution Details for ID: ${args.id}`
       );
     }, args);
   }
-  
 }
 
 /**
- * Get tool definition for the get_execution tool
- * 
+ * Get tool definition for the n8n-executions-get tool
+ *
  * @returns Tool definition
  */
 export function getGetExecutionToolDefinition(): ToolDefinition {
   return {
-    name: 'get_execution',
-    description: 'Retrieve detailed information about a specific workflow execution',
+    name: "n8n-executions-get",
+    description: "Get details of a specific n8n workflow execution",
     inputSchema: {
-      type: 'object',
+      type: "object",
       properties: {
-        executionId: {
-          type: 'string',
-          description: 'ID of the execution to retrieve',
+        id: {
+          type: "string",
+          description: "Execution ID to retrieve",
+        },
+        includeData: {
+          type: "boolean",
+          description: "Whether to include execution data",
         },
       },
-      required: ['executionId'],
+      required: ["id"],
     },
   };
 }

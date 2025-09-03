@@ -1,19 +1,49 @@
 /**
  * Workflow Tools Module
- * 
+ *
  * This module provides MCP tools for interacting with n8n workflows.
+ *
+ * @format
  */
 
-import { ToolDefinition } from '../../types/index.js';
+import { ToolDefinition } from "../../types/index.js";
 
 // Import tool definitions
-import { getListWorkflowsToolDefinition, ListWorkflowsHandler } from './list.js';
-import { getGetWorkflowToolDefinition, GetWorkflowHandler } from './get.js';
-import { getCreateWorkflowToolDefinition, CreateWorkflowHandler } from './create.js';
-import { getUpdateWorkflowToolDefinition, UpdateWorkflowHandler } from './update.js';
-import { getDeleteWorkflowToolDefinition, DeleteWorkflowHandler } from './delete.js';
-import { getActivateWorkflowToolDefinition, ActivateWorkflowHandler } from './activate.js';
-import { getDeactivateWorkflowToolDefinition, DeactivateWorkflowHandler } from './deactivate.js';
+import {
+  getListWorkflowsToolDefinition,
+  ListWorkflowsHandler,
+} from "./list.js";
+import { getGetWorkflowToolDefinition, GetWorkflowHandler } from "./get.js";
+import {
+  getCreateWorkflowToolDefinition,
+  CreateWorkflowHandler,
+} from "./create.js";
+import {
+  getUpdateWorkflowToolDefinition,
+  UpdateWorkflowHandler,
+} from "./update.js";
+import {
+  getDeleteWorkflowToolDefinition,
+  DeleteWorkflowHandler,
+} from "./delete.js";
+import {
+  getTransferWorkflowToolDefinition,
+  TransferWorkflowHandler,
+} from "./transfer.js";
+import {
+  getActivateWorkflowToolDefinition,
+  ActivateWorkflowHandler,
+} from "./activate.js";
+import {
+  getDeactivateWorkflowToolDefinition,
+  DeactivateWorkflowHandler,
+} from "./deactivate.js";
+import {
+  getGetWorkflowTagsToolDefinition,
+  GetWorkflowTagsHandler,
+  getUpdateWorkflowTagsToolDefinition,
+  UpdateWorkflowTagsHandler,
+} from "./tags.js";
 
 // Export handlers
 export {
@@ -22,13 +52,16 @@ export {
   CreateWorkflowHandler,
   UpdateWorkflowHandler,
   DeleteWorkflowHandler,
+  TransferWorkflowHandler,
   ActivateWorkflowHandler,
   DeactivateWorkflowHandler,
+  GetWorkflowTagsHandler,
+  UpdateWorkflowTagsHandler,
 };
 
 /**
  * Set up workflow management tools
- * 
+ *
  * @returns Array of workflow tool definitions
  */
 export async function setupWorkflowTools(): Promise<ToolDefinition[]> {
@@ -38,7 +71,10 @@ export async function setupWorkflowTools(): Promise<ToolDefinition[]> {
     getCreateWorkflowToolDefinition(),
     getUpdateWorkflowToolDefinition(),
     getDeleteWorkflowToolDefinition(),
+    getTransferWorkflowToolDefinition(),
     getActivateWorkflowToolDefinition(),
     getDeactivateWorkflowToolDefinition(),
+    getGetWorkflowTagsToolDefinition(),
+    getUpdateWorkflowTagsToolDefinition(),
   ];
 }

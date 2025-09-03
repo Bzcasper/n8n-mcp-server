@@ -1,12 +1,14 @@
 /**
  * Activate Workflow Tool
- * 
+ *
  * This tool activates an existing workflow in n8n.
+ *
+ * @format
  */
 
-import { BaseWorkflowToolHandler } from './base-handler.js';
-import { ToolCallResult, ToolDefinition } from '../../types/index.js';
-import { N8nApiError } from '../../errors/index.js';
+import { BaseWorkflowToolHandler } from "./base-handler.js";
+import { ToolCallResult, ToolDefinition } from "../../types/index.js";
+import { N8nApiError } from "../../errors/index.js";
 
 /**
  * Handler for the activate_workflow tool
@@ -14,28 +16,28 @@ import { N8nApiError } from '../../errors/index.js';
 export class ActivateWorkflowHandler extends BaseWorkflowToolHandler {
   /**
    * Execute the tool
-   * 
+   *
    * @param args Tool arguments containing workflowId
    * @returns Activation confirmation
    */
   async execute(args: Record<string, any>): Promise<ToolCallResult> {
     return this.handleExecution(async (args) => {
-      const { workflowId } = args;
-      
-      if (!workflowId) {
-        throw new N8nApiError('Missing required parameter: workflowId');
+      const { id } = args;
+
+      if (!id) {
+        throw new N8nApiError("Missing required parameter: id");
       }
-      
+
       // Activate the workflow
-      const workflow = await this.apiService.activateWorkflow(workflowId);
-      
+      const workflow = await this.apiService.activateWorkflow(id);
+
       return this.formatSuccess(
         {
           id: workflow.id,
           name: workflow.name,
-          active: workflow.active
+          active: workflow.active,
         },
-        `Workflow "${workflow.name}" (ID: ${workflowId}) has been successfully activated`
+        `Workflow "${workflow.name}" (ID: ${id}) has been successfully activated`
       );
     }, args);
   }
@@ -43,22 +45,22 @@ export class ActivateWorkflowHandler extends BaseWorkflowToolHandler {
 
 /**
  * Get tool definition for the activate_workflow tool
- * 
+ *
  * @returns Tool definition
  */
 export function getActivateWorkflowToolDefinition(): ToolDefinition {
   return {
-    name: 'activate_workflow',
-    description: 'Activate a workflow in n8n',
+    name: "n8n-workflow-activate",
+    description: "Activate an n8n workflow to accept triggers",
     inputSchema: {
-      type: 'object',
+      type: "object",
       properties: {
-        workflowId: {
-          type: 'string',
-          description: 'ID of the workflow to activate',
+        id: {
+          type: "string",
+          description: "Workflow ID to activate",
         },
       },
-      required: ['workflowId'],
+      required: ["id"],
     },
   };
 }

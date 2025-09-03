@@ -1,67 +1,63 @@
 /**
- * List Executions Tool
- * 
- * This tool retrieves a list of workflow executions from n8n.
+ * N8N Executions List Tool
+ *
+ * This tool retrieves a list of workflow executions from n8n with optional filtering.
+ *
+ * @format
  */
 
-import { BaseExecutionToolHandler } from './base-handler.js';
-import { ToolCallResult, ToolDefinition, Execution } from '../../types/index.js';
-import { formatExecutionSummary, summarizeExecutions } from '../../utils/execution-formatter.js';
+import { BaseExecutionToolHandler } from "./base-handler.js";
+import {
+  ToolCallResult,
+  ToolDefinition,
+  Execution,
+} from "../../types/index.js";
+import { formatExecutionSummary } from "../../utils/execution-formatter.js";
 
 /**
- * Handler for the list_executions tool
+ * Handler for the n8n-executions-list tool
  */
 export class ListExecutionsHandler extends BaseExecutionToolHandler {
   /**
    * Execute the tool
-   * 
-   * @param args Tool arguments (workflowId, status, limit, lastId)
+   *
+   * @param args Tool arguments
    * @returns List of executions
    */
   async execute(args: Record<string, any>): Promise<ToolCallResult> {
     return this.handleExecution(async () => {
-      const executions = await this.apiService.getExecutions();
-      
-      // Apply filters if provided
-      let filteredExecutions = executions;
-      
-      // Filter by workflow ID if provided
-      if (args.workflowId) {
-        filteredExecutions = filteredExecutions.filter(
-          (execution: Execution) => execution.workflowId === args.workflowId
+      // Extract API parameters
+      const apiParams: Record<string, any> = {};
+      if (args.includeData !== undefined)
+        apiParams.includeData = args.includeData;
+      if (args.status) apiParams.status = args.status;
+      if (args.workflowId) apiParams.workflowId = args.workflowId;
+      if (args.projectId) apiParams.projectId = args.projectId;
+      if (args.limit) apiParams.limit = args.limit;
+      if (args.cursor) apiParams.cursor = args.cursor;
+
+      // Fetch executions from API with parameters
+      const executions = await this.apiService.getExecutions(apiParams);
+
+      // Format the executions based on includeData
+      let formattedExecutions;
+      if (args.includeData) {
+        // Return full execution objects if data is requested
+        formattedExecutions = executions;
+      } else {
+        // Return formatted summaries
+        formattedExecutions = executions.map((execution: Execution) =>
+          formatExecutionSummary(execution)
         );
       }
-      
-      // Filter by status if provided
-      if (args.status) {
-        filteredExecutions = filteredExecutions.filter(
-          (execution: Execution) => execution.status === args.status
-        );
-      }
-      
-      // Apply limit if provided
-      const limit = args.limit && args.limit > 0 ? args.limit : filteredExecutions.length;
-      filteredExecutions = filteredExecutions.slice(0, limit);
-      
-      // Format the executions for display
-      const formattedExecutions = filteredExecutions.map((execution: Execution) => 
-        formatExecutionSummary(execution)
-      );
-      
-      // Generate summary if requested
-      let summary = undefined;
-      if (args.includeSummary) {
-        summary = summarizeExecutions(executions);
-      }
-      
+
       // Prepare response data
       const responseData = {
         executions: formattedExecutions,
-        summary: summary,
         total: formattedExecutions.length,
-        filtered: args.workflowId || args.status ? true : false
+        ...(apiParams.cursor ? { cursor: apiParams.cursor } : {}),
       };
-      
+
       return this.formatSuccess(
         responseData,
         `Found ${formattedExecutions.length} execution(s)`
@@ -71,36 +67,41 @@ export class ListExecutionsHandler extends BaseExecutionToolHandler {
 }
 
 /**
- * Get tool definition for the list_executions tool
- * 
+ * Get tool definition for the n8n-executions-list tool
+ *
  * @returns Tool definition
  */
 export function getListExecutionsToolDefinition(): ToolDefinition {
   return {
-    name: 'list_executions',
-    description: 'Retrieve a list of workflow executions from n8n',
+    name: "n8n-executions-list",
+    description: "List n8n workflow executions with optional filtering",
     inputSchema: {
-      type: 'object',
+      type: "object",
       properties: {
-        workflowId: {
-          type: 'string',
-          description: 'Optional ID of workflow to filter executions by',
+        includeData: {
+          type: "boolean",
+          description: "Whether to include execution data",
         },
         status: {
-          type: 'string',
-          description: 'Optional status to filter by (success, error, waiting, or canceled)',
+          type: "string",
+          enum: ["error", "success", "waiting"],
+          description: "Filter by status",
+        },
+        workflowId: {
+          type: "string",
+          description: "Filter by specific workflow",
+        },
+        projectId: {
+          type: "string",
+          description: "Filter by specific project",
         },
         limit: {
-          type: 'number',
-          description: 'Maximum number of executions to return',
+          type: "integer",
+          description: "Maximum number of results",
         },
-        lastId: {
-          type: 'string',
-          description: 'ID of the last execution for pagination',
-        },
-        includeSummary: {
-          type: 'boolean',
-          description: 'Include summary statistics about executions',
+        cursor: {
+          type: "string",
+          description: "Cursor for pagination",
         },
       },
       required: [],

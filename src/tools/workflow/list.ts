@@ -1,11 +1,13 @@
 /**
  * List Workflows Tool
- * 
+ *
  * This tool retrieves a list of workflows from n8n.
+ *
+ * @format
  */
 
-import { BaseWorkflowToolHandler } from './base-handler.js';
-import { ToolCallResult, ToolDefinition, Workflow } from '../../types/index.js';
+import { BaseWorkflowToolHandler } from "./base-handler.js";
+import { ToolCallResult, ToolDefinition, Workflow } from "../../types/index.js";
 
 /**
  * Handler for the list_workflows tool
@@ -13,14 +15,22 @@ import { ToolCallResult, ToolDefinition, Workflow } from '../../types/index.js';
 export class ListWorkflowsHandler extends BaseWorkflowToolHandler {
   /**
    * Execute the tool
-   * 
+   *
    * @param args Tool arguments
    * @returns List of workflows
    */
   async execute(args: Record<string, any>): Promise<ToolCallResult> {
     return this.handleExecution(async () => {
-      const workflows = await this.apiService.getWorkflows();
-      
+      const { includeData, projectId, limit, cursor } = args;
+
+      const params: Record<string, any> = {};
+      if (includeData !== undefined) params.includeData = includeData;
+      if (projectId !== undefined) params.projectId = projectId;
+      if (limit !== undefined) params.limit = limit;
+      if (cursor !== undefined) params.cursor = cursor;
+
+      const workflows = await this.apiService.getWorkflows(params);
+
       // Format the workflows for display
       const formattedWorkflows = workflows.map((workflow: Workflow) => ({
         id: workflow.id,
@@ -28,7 +38,7 @@ export class ListWorkflowsHandler extends BaseWorkflowToolHandler {
         active: workflow.active,
         updatedAt: workflow.updatedAt,
       }));
-      
+
       return this.formatSuccess(
         formattedWorkflows,
         `Found ${formattedWorkflows.length} workflow(s)`
@@ -38,20 +48,33 @@ export class ListWorkflowsHandler extends BaseWorkflowToolHandler {
 }
 
 /**
- * Get tool definition for the list_workflows tool
- * 
+ * Get tool definition for the n8n-workflow-list tool
+ *
  * @returns Tool definition
  */
 export function getListWorkflowsToolDefinition(): ToolDefinition {
   return {
-    name: 'list_workflows',
-    description: 'Retrieve a list of all workflows available in n8n',
+    name: "n8n-workflow-list",
+    description:
+      "Retrieve a list of n8n workflows with optional filtering and pagination",
     inputSchema: {
-      type: 'object',
+      type: "object",
       properties: {
-        active: {
-          type: 'boolean',
-          description: 'Optional filter to show only active or inactive workflows',
+        includeData: {
+          type: "boolean",
+          description: "Include workflow data in response",
+        },
+        projectId: {
+          type: "string",
+          description: "Filter workflows by project ID",
+        },
+        limit: {
+          type: "integer",
+          description: "Maximum number of workflows to return",
+        },
+        cursor: {
+          type: "string",
+          description: "Cursor for pagination",
         },
       },
       required: [],

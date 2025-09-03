@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "n8n-mcp-server": {
+      "command": "docker run --rm --env-file /home/bobby/projects/n8n-mcp-server/.env -p 3000:8000 n8n-mcp-server",
+      "args": []
+    }
+  }
+}

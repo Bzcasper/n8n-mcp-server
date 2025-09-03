@@ -1,64 +1,66 @@
 /**
  * Deactivate Workflow Tool
- * 
+ *
  * This tool deactivates an existing workflow in n8n.
+ *
+ * @format
  */
 
-import { BaseWorkflowToolHandler } from './base-handler.js';
-import { ToolCallResult, ToolDefinition } from '../../types/index.js';
-import { N8nApiError } from '../../errors/index.js';
+import { BaseWorkflowToolHandler } from "./base-handler.js";
+import { ToolCallResult, ToolDefinition } from "../../types/index.js";
+import { N8nApiError } from "../../errors/index.js";
 
 /**
- * Handler for the deactivate_workflow tool
+ * Handler for the n8n-workflow-deactivate tool
  */
 export class DeactivateWorkflowHandler extends BaseWorkflowToolHandler {
   /**
    * Execute the tool
-   * 
-   * @param args Tool arguments containing workflowId
+   *
+   * @param args Tool arguments containing id
    * @returns Deactivation confirmation
    */
   async execute(args: Record<string, any>): Promise<ToolCallResult> {
     return this.handleExecution(async (args) => {
-      const { workflowId } = args;
-      
-      if (!workflowId) {
-        throw new N8nApiError('Missing required parameter: workflowId');
+      const { id } = args;
+
+      if (!id) {
+        throw new N8nApiError("Missing required parameter: id");
       }
-      
+
       // Deactivate the workflow
-      const workflow = await this.apiService.deactivateWorkflow(workflowId);
-      
+      const workflow = await this.apiService.deactivateWorkflow(id);
+
       return this.formatSuccess(
         {
           id: workflow.id,
           name: workflow.name,
-          active: workflow.active
+          active: workflow.active,
         },
-        `Workflow "${workflow.name}" (ID: ${workflowId}) has been successfully deactivated`
+        `Workflow "${workflow.name}" (ID: ${id}) has been successfully deactivated`
       );
     }, args);
   }
 }
 
 /**
- * Get tool definition for the deactivate_workflow tool
- * 
+ * Get tool definition for the n8n-workflow-deactivate tool
+ *
  * @returns Tool definition
  */
 export function getDeactivateWorkflowToolDefinition(): ToolDefinition {
   return {
-    name: 'deactivate_workflow',
-    description: 'Deactivate a workflow in n8n',
+    name: "n8n-workflow-deactivate",
+    description: "Deactivate an n8n workflow to stop accepting triggers",
     inputSchema: {
-      type: 'object',
+      type: "object",
       properties: {
-        workflowId: {
-          type: 'string',
-          description: 'ID of the workflow to deactivate',
+        id: {
+          type: "string",
+          description: "Workflow ID to deactivate",
         },
       },
-      required: ['workflowId'],
+      required: ["id"],
     },
   };
 }
