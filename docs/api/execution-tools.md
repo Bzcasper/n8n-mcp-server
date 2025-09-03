@@ -1,3 +1,5 @@
+<!-- @format -->
+
 # Execution Tools
 
 This page documents the tools available for managing n8n workflow executions.
@@ -42,19 +44,19 @@ Executes a workflow via webhook with optional input data.
 const webhookResult = await useRunWebhook({
   workflowName: "hello-world",
   data: {
-    prompt: "Good morning!"
-  }
+    prompt: "Good morning!",
+  },
 });
 
 // Execute webhook with additional headers
 const webhookWithHeaders = await useRunWebhook({
   workflowName: "hello-world",
   data: {
-    prompt: "Hello with custom header"
+    prompt: "Hello with custom header",
   },
   headers: {
-    "X-Custom-Header": "CustomValue"
-  }
+    "X-Custom-Header": "CustomValue",
+  },
 });
 ```
 
@@ -70,10 +72,11 @@ const webhookWithHeaders = await useRunWebhook({
 }
 ```
 
-**Note:** 
-- Authentication for the webhook is automatically handled using the environment variables `N8N_WEBHOOK_USERNAME` and `N8N_WEBHOOK_PASSWORD`.
-- The tool automatically prefixes the `workflowName` with `webhook/` to create the full webhook path. For example, if you provide `hello-world` as the workflow name, the tool will call `{baseUrl}/webhook/hello-world`.
+**Note:**
 
+- Authentication for the webhook is automatically handled using the environment variables `N8N_WEBHOOK_USERNAME` and `N8N_WEBHOOK_PASSWORD`.
+- The webhook base URL can be configured using `N8N_WEBHOOK_BASE_URL` (defaults to API URL without `/api/v1`).
+- The tool automatically prefixes the `workflowName` with `webhook/` to create the full webhook path. For example, if you provide `hello-world` as the workflow name, the tool will call `{baseUrl}/webhook/hello-world`.
 
 ### execution_run
 
@@ -108,7 +111,7 @@ Executes a workflow with optional input data.
 ```javascript
 // Execute without waiting
 const execution = await useExecutionRun({
-  workflowId: "1234abc"
+  workflowId: "1234abc",
 });
 
 // Execute with input data
@@ -117,14 +120,14 @@ const executionWithData = await useExecutionRun({
   data: {
     firstName: "John",
     lastName: "Doe",
-    email: "john.doe@example.com"
-  }
+    email: "john.doe@example.com",
+  },
 });
 
 // Execute and wait for completion
 const completedExecution = await useExecutionRun({
   workflowId: "1234abc",
-  waitForCompletion: true
+  waitForCompletion: true,
 });
 ```
 
@@ -175,7 +178,7 @@ Retrieves details of a specific execution.
 
 ```javascript
 const execution = await useExecutionGet({
-  executionId: "exec789"
+  executionId: "exec789",
 });
 ```
 
@@ -238,19 +241,19 @@ Lists executions for a specific workflow.
 ```javascript
 // List all executions for a workflow
 const executions = await useExecutionList({
-  workflowId: "1234abc"
+  workflowId: "1234abc",
 });
 
 // List with limit
 const limitedExecutions = await useExecutionList({
   workflowId: "1234abc",
-  limit: 5
+  limit: 5,
 });
 
 // List only successful executions
 const successfulExecutions = await useExecutionList({
   workflowId: "1234abc",
-  status: "success"
+  status: "success",
 });
 ```
 
@@ -259,22 +262,22 @@ const successfulExecutions = await useExecutionList({
 ```javascript
 [
   {
-    "id": "exec789",
-    "workflowId": "1234abc",
-    "status": "success",
-    "startedAt": "2025-03-12T16:30:00.000Z",
-    "finishedAt": "2025-03-12T16:30:05.000Z",
-    "mode": "manual"
+    id: "exec789",
+    workflowId: "1234abc",
+    status: "success",
+    startedAt: "2025-03-12T16:30:00.000Z",
+    finishedAt: "2025-03-12T16:30:05.000Z",
+    mode: "manual",
   },
   {
-    "id": "exec456",
-    "workflowId": "1234abc",
-    "status": "error",
-    "startedAt": "2025-03-11T14:20:00.000Z",
-    "finishedAt": "2025-03-11T14:20:10.000Z",
-    "mode": "manual"
-  }
-]
+    id: "exec456",
+    workflowId: "1234abc",
+    status: "error",
+    startedAt: "2025-03-11T14:20:00.000Z",
+    finishedAt: "2025-03-11T14:20:10.000Z",
+    mode: "manual",
+  },
+];
 ```
 
 ### execution_delete
@@ -300,7 +303,7 @@ Deletes an execution record.
 
 ```javascript
 await useExecutionDelete({
-  executionId: "exec789"
+  executionId: "exec789",
 });
 ```
 
@@ -335,7 +338,7 @@ Stops a running execution.
 
 ```javascript
 await useExecutionStop({
-  executionId: "exec789"
+  executionId: "exec789",
 });
 ```
 
@@ -353,25 +356,25 @@ await useExecutionStop({
 
 Executions can have the following status codes:
 
-| Status | Description |
-|--------|-------------|
-| `running` | The execution is currently in progress |
-| `success` | The execution completed successfully |
-| `error` | The execution failed with an error |
-| `waiting` | The execution is waiting for a webhook or other event |
-| `cancelled` | The execution was manually stopped |
+| Status      | Description                                           |
+| ----------- | ----------------------------------------------------- |
+| `running`   | The execution is currently in progress                |
+| `success`   | The execution completed successfully                  |
+| `error`     | The execution failed with an error                    |
+| `waiting`   | The execution is waiting for a webhook or other event |
+| `cancelled` | The execution was manually stopped                    |
 
 ## Error Handling
 
 All execution tools can return the following errors:
 
-| Error | Description |
-|-------|-------------|
-| Authentication Error | The provided API key is invalid or missing |
-| Not Found Error | The requested workflow or execution does not exist |
-| Validation Error | The input parameters are invalid or incomplete |
-| Permission Error | The API key does not have permission to perform the operation |
-| Server Error | An unexpected error occurred on the n8n server |
+| Error                | Description                                                   |
+| -------------------- | ------------------------------------------------------------- |
+| Authentication Error | The provided API key is invalid or missing                    |
+| Not Found Error      | The requested workflow or execution does not exist            |
+| Validation Error     | The input parameters are invalid or incomplete                |
+| Permission Error     | The API key does not have permission to perform the operation |
+| Server Error         | An unexpected error occurred on the n8n server                |
 
 ## Best Practices
 
