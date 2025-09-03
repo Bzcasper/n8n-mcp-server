@@ -1,0 +1,163 @@
+{
+  "name": "WF11: Audio -> Music Video Assembly",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "music-video",
+        "options": { "binaryData": true }
+      },
+      "id": "webhook-music-video",
+      "name": "Webhook Audio Upload",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [160, 300]
+    },
+    {
+      "parameters": {
+        "operation": "transcribe",
+        "resource": "audio",
+        "binaryPropertyName": "audio",
+        "options": {}
+      },
+      "id": "openai-transcribe",
+      "name": "Transcribe Audio (Whisper)",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1,
+      "position": [420, 300],
+      "credentials": {
+        "openAiApi": {
+          "id": "__REPLACE_OPENAI_CRED_ID__",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build a concise creative summary prompt for image gen based on transcript.\\nconst text = $json.text || '';\\nconst summary = text.split(/\\n|\\. /).slice(0,4).join(' ').slice(0,400);\\nreturn { json: { prompt: 'Album cover style, vibrant cohesive artwork summarizing: ' + summary } };"
+      },
+      "id": "code-build-image-prompt",
+      "name": "Build Image Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [660, 300]
+    },
+    {
+      "parameters": {
+        "requestMethod": "POST",
+        "url": "https://api.openai.com/v1/images/generations",
+        "jsonParameters": true,
+        "options": {},
+        "bodyParametersJson": "={ \n  \"model\": \"gpt-image-1\",\n  \"prompt\": $json.prompt,\n  \"size\": \"1024x1024\"\n}"
+      },
+      "id": "http-generate-image",
+      "name": "Generate Cover Image",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [900, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__REPLACE_OPENAI_HTTP_CRED_ID__",
+          "name": "OpenAI HTTP"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract base64 image from OpenAI response\nconst data = $json.data && $json.data[0];\nconst b64 = data?.b64_json || '';\nreturn { json: { cover_image_base64: b64 } };"
+      },
+      "id": "code-extract-image",
+      "name": "Extract Image Base64",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1140, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare payload for external video assembly service.\n// Expect service to accept JSON with { audio_binary_property, image_base64, transcript }.\nreturn { json: { transcript: $items(\"Transcribe Audio (Whisper)\")[0].json.text, image_base64: $json.cover_image_base64, audioProp: 'audio' } };"
+      },
+      "id": "code-prepare-video",
+      "name": "Prepare Video Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1380, 300]
+    },
+    {
+      "parameters": {
+        "requestMethod": "POST",
+        "url": "https://__VIDEO_ASSEMBLY_HOST__/api/v1/build",
+        "jsonParameters": true,
+        "options": {},
+        "bodyParametersJson": "={{ JSON.stringify({ transcript: $json.transcript, image_base64: $json.image_base64 }) }}"
+      },
+      "id": "http-video-assemble",
+      "name": "Assemble Video",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [1620, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__REPLACE_VIDEO_SERVICE_CRED_ID__",
+          "name": "Video Service Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "mv1",
+              "name": "video_job_id",
+              "value": "={{ $json.job_id || $json.id || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "mv2",
+              "name": "video_url",
+              "value": "={{ $json.video_url || $json.url || '' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-output",
+      "name": "Set Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [1860, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Audio Upload": {
+      "main": [
+        [{ "node": "Transcribe Audio (Whisper)", "type": "main", "index": 0 }]
+      ]
+    },
+    "Transcribe Audio (Whisper)": {
+      "main": [[{ "node": "Build Image Prompt", "type": "main", "index": 0 }]]
+    },
+    "Build Image Prompt": {
+      "main": [[{ "node": "Generate Cover Image", "type": "main", "index": 0 }]]
+    },
+    "Generate Cover Image": {
+      "main": [[{ "node": "Extract Image Base64", "type": "main", "index": 0 }]]
+    },
+    "Extract Image Base64": {
+      "main": [
+        [{ "node": "Prepare Video Payload", "type": "main", "index": 0 }]
+      ]
+    },
+    "Prepare Video Payload": {
+      "main": [[{ "node": "Assemble Video", "type": "main", "index": 0 }]]
+    },
+    "Assemble Video": {
+      "main": [[{ "node": "Set Response", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "pinData": {},
+  "tags": ["audio", "video", "generation", "openai"]
+}

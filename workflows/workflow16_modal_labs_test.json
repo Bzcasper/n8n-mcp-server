@@ -1,0 +1,157 @@
+{
+  "name": "WF16: Modal Labs Test Integration",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "modal-test",
+        "options": {
+          "binaryData": false
+        }
+      },
+      "id": "webhook-test",
+      "name": "Modal Test Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [300, 300]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "test_data",
+              "name": "test_data",
+              "value": "={{ $json.body.message || 'Hello from n8n!' }}",
+              "type": "string"
+            },
+            {
+              "id": "timestamp",
+              "name": "timestamp",
+              "value": "={{ $now }}",
+              "type": "string"
+            },
+            {
+              "id": "webhook_id",
+              "name": "webhook_id",
+              "value": "={{ $randomString(8) }}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "id": "prepare-data",
+      "name": "Prepare Test Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [540, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://httpbin.org/post",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "User-Agent",
+              "value": "n8n-modal-integration/1.0"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "jsonParameters": {
+          "parameters": [
+            {
+              "name": "message",
+              "value": "={{ $json.test_data }}"
+            },
+            {
+              "name": "timestamp",
+              "value": "={{ $json.timestamp }}"
+            },
+            {
+              "name": "source",
+              "value": "=n8n-modal-pipeline"
+            },
+            {
+              "name": "webhook_id",
+              "value": "={{ $json.webhook_id }}"
+            }
+          ]
+        }
+      },
+      "id": "test-api-call",
+      "name": "Test API Call",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [780, 300]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "response_status",
+              "name": "response_status",
+              "value": "=success",
+              "type": "string"
+            },
+            {
+              "id": "api_response",
+              "name": "api_response",
+              "value": "={{ $json.json }}",
+              "type": "object"
+            },
+            {
+              "id": "processing_time",
+              "name": "processing_time",
+              "value": "={{ (Date.now() - Date.parse($node['Prepare Test Data'].json.timestamp)) / 1000 }}",
+              "type": "number"
+            }
+          ]
+        }
+      },
+      "id": "format-response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [1020, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true, \"webhook_id\": $node['Prepare Test Data'].json.webhook_id, \"response_status\": $json.response_status, \"processing_time_seconds\": $json.processing_time, \"api_response\": $json.api_response, \"message\": \"Modal Labs integration test completed successfully\" } }}"
+      },
+      "id": "final-response",
+      "name": "Final Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1260, 300]
+    }
+  ],
+  "connections": {
+    "Modal Test Webhook": {
+      "main": [[{"node": "Prepare Test Data", "type": "main", "index": 0}]]
+    },
+    "Prepare Test Data": {
+      "main": [[{"node": "Test API Call", "type": "main", "index": 0}]]
+    },
+    "Test API Call": {
+      "main": [[{"node": "Format Response", "type": "main", "index": 0}]]
+    },
+    "Format Response": {
+      "main": [[{"node": "Final Response", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {
+    "saveExecutionProgress": "manual",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all"
+  }
+}

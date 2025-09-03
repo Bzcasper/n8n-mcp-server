@@ -1,0 +1,473 @@
+{
+  "name": "WF15: Modal Labs + Video Assembly Pipeline",
+  "active": true,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "modal-video-pipeline",
+        "options": {
+          "binaryData": true
+        }
+      },
+      "id": "webhook-video",
+      "name": "Video Pipeline Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [300, 300]
+    },
+    {
+      "parameters": {
+        "url": "=https://{{$parameter.modal_endpoint}}/api/v1/transcribe",
+        "authentication": "headerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$credentials.modal_api.token}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "jsonParameters": {
+          "parameters": [
+            {
+              "name": "audio_data",
+              "value": "={{ $binary.data }}"
+            },
+            {
+              "name": "model",
+              "value": "=whisper-large"
+            },
+            {
+              "name": "language",
+              "value": "=auto"
+            }
+          ]
+        }
+      },
+      "id": "modal-transcribe",
+      "name": "Modal Labs Transcription",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [540, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__REPLACE_MODAL_CRED_ID__",
+          "name": "Modal Labs API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://{{$parameter.modal_endpoint}}/api/v1/generate-image",
+        "authentication": "headerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$credentials.modal_api.token}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "jsonParameters": {
+          "parameters": [
+            {
+              "name": "prompt",
+              "value": "=Generate a cover image for: {{ $json.transcript }}"
+            },
+            {
+              "name": "style",
+              "value": "=professional"
+            },
+            {
+              "name": "format",
+              "value": "=base64"
+            }
+          ]
+        }
+      },
+      "id": "modal-image-gen",
+      "name": "Modal Labs Image Generation",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [780, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__REPLACE_MODAL_CRED_ID__",
+          "name": "Modal Labs API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "transcript",
+              "name": "transcript",
+              "value": "={{ $node['Modal Labs Transcription'].json.transcript }}",
+              "type": "string"
+            },
+            {
+              "id": "image_base64",
+              "name": "image_base64",
+              "value": "={{ $json.image_data }}",
+              "type": "string"
+            },
+            {
+              "id": "metadata",
+              "name": "metadata",
+              "value": "={{ { \"source\": \"modal-pipeline\", \"timestamp\": $now, \"audio_duration\": $node['Modal Labs Transcription'].json.duration } }}",
+              "type": "object"
+            }
+          ]
+        }
+      },
+      "id": "prepare-video-data",
+      "name": "Prepare Video Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [1020, 300]
+    },
+    {
+      "parameters": {
+        "url": "=http://video-assembly-service:3001/api/v1/build",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "jsonParameters": {
+          "parameters": [
+            {
+              "name": "transcript",
+              "value": "={{ $json.transcript }}"
+            },
+            {
+              "name": "image_base64",
+              "value": "={{ $json.image_base64 }}"
+            },
+            {
+              "name": "metadata",
+              "value": "={{ $json.metadata }}"
+            }
+          ]
+        }
+      },
+      "id": "video-assembly",
+      "name": "Video Assembly Service",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1260, 300]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "job_id",
+              "name": "job_id",
+              "value": "={{ $json.job_id }}",
+              "type": "string"
+            },
+            {
+              "id": "polling_url",
+              "value": "=http://video-assembly-service:3001/api/v1/status/{{ $json.job_id }}",
+              "name": "polling_url",
+              "type": "string"
+            },
+            {
+              "id": "attempts",
+              "name": "attempts",
+              "value": "=0",
+              "type": "number"
+            },
+            {
+              "id": "max_attempts",
+              "name": "max_attempts", 
+              "value": "=20",
+              "type": "number"
+            }
+          ]
+        }
+      },
+      "id": "setup-polling",
+      "name": "Setup Video Polling",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [1500, 300]
+    },
+    {
+      "parameters": {
+        "amount": 3,
+        "unit": "seconds"
+      },
+      "id": "wait-processing",
+      "name": "Wait for Processing",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [1740, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.polling_url }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        }
+      },
+      "id": "check-video-status",
+      "name": "Check Video Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1980, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.status }}",
+              "operation": "equal",
+              "value2": "ready"
+            }
+          ]
+        }
+      },
+      "id": "video-ready",
+      "name": "Video Ready?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [2220, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true, \"job_id\": $node['Setup Video Polling'].json.job_id, \"video_url\": $json.video_url, \"transcript\": $node['Prepare Video Data'].json.transcript, \"processing_time\": (Date.now() - $node['Video Assembly Service'].json.createdAt) / 1000 } }}"
+      },
+      "id": "video-complete",
+      "name": "Video Complete Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2460, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $node['Setup Video Polling'].json.attempts }}",
+              "operation": "smaller",
+              "value2": "={{ $node['Setup Video Polling'].json.max_attempts }}"
+            }
+          ]
+        }
+      },
+      "id": "can-retry-poll",
+      "name": "Can Retry Poll?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [2220, 500]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "attempts",
+              "name": "attempts",
+              "value": "={{ $node['Setup Video Polling'].json.attempts + 1 }}",
+              "type": "number"
+            }
+          ]
+        }
+      },
+      "id": "increment-poll-attempt",
+      "name": "Increment Poll Attempt",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [2460, 500]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": false, \"job_id\": $node['Setup Video Polling'].json.job_id, \"status\": \"timeout\", \"message\": \"Video processing timeout after maximum attempts\", \"attempts\": $node['Setup Video Polling'].json.max_attempts } }}"
+      },
+      "id": "polling-timeout",
+      "name": "Polling Timeout Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2460, 700]
+    }
+  ],
+  "connections": {
+    "Video Pipeline Webhook": {
+      "main": [
+        [
+          {
+            "node": "Modal Labs Transcription",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Modal Labs Transcription": {
+      "main": [
+        [
+          {
+            "node": "Modal Labs Image Generation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Modal Labs Image Generation": {
+      "main": [
+        [
+          {
+            "node": "Prepare Video Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Video Data": {
+      "main": [
+        [
+          {
+            "node": "Video Assembly Service",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Video Assembly Service": {
+      "main": [
+        [
+          {
+            "node": "Setup Video Polling",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Setup Video Polling": {
+      "main": [
+        [
+          {
+            "node": "Wait for Processing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait for Processing": {
+      "main": [
+        [
+          {
+            "node": "Check Video Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Video Status": {
+      "main": [
+        [
+          {
+            "node": "Video Ready?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Video Ready?": {
+      "main": [
+        [
+          {
+            "node": "Video Complete Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Can Retry Poll?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Can Retry Poll?": {
+      "main": [
+        [
+          {
+            "node": "Increment Poll Attempt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Polling Timeout Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Increment Poll Attempt": {
+      "main": [
+        [
+          {
+            "node": "Wait for Processing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "parameters": {
+    "modal_endpoint": "https://your-app.modal.run"
+  },
+  "settings": {
+    "saveExecutionProgress": "manual",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all"
+  }
+}

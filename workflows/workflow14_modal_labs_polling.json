@@ -1,0 +1,270 @@
+{
+  "name": "WF14: Modal Labs Polling Pipeline",
+  "active": true,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "modal-poll-status",
+        "options": {}
+      },
+      "id": "webhook-poll",
+      "name": "Modal Labs Poll Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [300, 300]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "job_id",
+              "name": "job_id",
+              "value": "={{ $json.body.job_id }}",
+              "type": "string"
+            },
+            {
+              "id": "max_attempts",
+              "name": "max_attempts",
+              "value": "={{ $json.body.max_attempts || 10 }}",
+              "type": "number"
+            },
+            {
+              "id": "polling_interval",
+              "name": "polling_interval",
+              "value": "={{ $json.body.polling_interval || 5 }}",
+              "type": "number"
+            },
+            {
+              "id": "attempt",
+              "name": "attempt",
+              "value": "=1",
+              "type": "number"
+            }
+          ]
+        }
+      },
+      "id": "setup-polling",
+      "name": "Setup Polling Parameters",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [540, 300]
+    },
+    {
+      "parameters": {
+        "url": "=https://{{$parameter.modal_endpoint}}/api/v1/status/{{$json.job_id}}",
+        "authentication": "headerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$credentials.modal_api.token}}"
+            }
+          ]
+        }
+      },
+      "id": "check-status",
+      "name": "Check Modal Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [780, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__REPLACE_MODAL_CRED_ID__",
+          "name": "Modal Labs API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.status }}",
+              "operation": "equal",
+              "value2": "completed"
+            }
+          ]
+        }
+      },
+      "id": "is-complete",
+      "name": "Is Job Complete?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1020, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true, \"job_id\": $('Setup Polling Parameters').item.json.job_id, \"status\": \"completed\", \"result\": $json.result, \"attempts\": $('Setup Polling Parameters').item.json.attempt } }}"
+      },
+      "id": "completed-response",
+      "name": "Job Completed",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1260, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $('Setup Polling Parameters').item.json.attempt }}",
+              "operation": "smaller",
+              "value2": "={{ $('Setup Polling Parameters').item.json.max_attempts }}"
+            }
+          ]
+        }
+      },
+      "id": "can-retry",
+      "name": "Can Retry?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1020, 500]
+    },
+    {
+      "parameters": {
+        "amount": "={{ $('Setup Polling Parameters').item.json.polling_interval }}",
+        "unit": "seconds"
+      },
+      "id": "wait-interval",
+      "name": "Wait Polling Interval",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [1260, 500]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "attempt",
+              "name": "attempt",
+              "value": "={{ $('Setup Polling Parameters').item.json.attempt + 1 }}",
+              "type": "number"
+            }
+          ]
+        }
+      },
+      "id": "increment-attempt",
+      "name": "Increment Attempt",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [1500, 500]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": false, \"job_id\": $('Setup Polling Parameters').item.json.job_id, \"status\": \"timeout\", \"message\": \"Maximum polling attempts reached\", \"attempts\": $('Setup Polling Parameters').item.json.max_attempts } }}"
+      },
+      "id": "timeout-response",
+      "name": "Timeout Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1260, 700]
+    }
+  ],
+  "connections": {
+    "Modal Labs Poll Webhook": {
+      "main": [
+        [
+          {
+            "node": "Setup Polling Parameters",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Setup Polling Parameters": {
+      "main": [
+        [
+          {
+            "node": "Check Modal Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Modal Status": {
+      "main": [
+        [
+          {
+            "node": "Is Job Complete?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Job Complete?": {
+      "main": [
+        [
+          {
+            "node": "Job Completed",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Can Retry?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Can Retry?": {
+      "main": [
+        [
+          {
+            "node": "Wait Polling Interval",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Timeout Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait Polling Interval": {
+      "main": [
+        [
+          {
+            "node": "Increment Attempt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Increment Attempt": {
+      "main": [
+        [
+          {
+            "node": "Check Modal Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "parameters": {
+    "modal_endpoint": "https://your-app.modal.run"
+  },
+  "settings": {
+    "saveExecutionProgress": "manual",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all"
+  }
+}

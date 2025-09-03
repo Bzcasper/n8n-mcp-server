@@ -1,0 +1,366 @@
+{
+  "name": "WF20: Individual Content Generation Tools",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "generate-titles",
+        "options": {
+          "binaryData": false
+        }
+      },
+      "id": "webhook-titles",
+      "name": "Generate Titles Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [300, 200]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "generate-descriptions",
+        "options": {
+          "binaryData": false
+        }
+      },
+      "id": "webhook-descriptions",
+      "name": "Generate Descriptions Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [300, 400]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "generate-image-prompts",
+        "options": {
+          "binaryData": false
+        }
+      },
+      "id": "webhook-image-prompts",
+      "name": "Generate Image Prompts Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [300, 600]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "generate-video-prompts",
+        "options": {
+          "binaryData": false
+        }
+      },
+      "id": "webhook-video-prompts",
+      "name": "Generate Video Prompts Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [300, 800]
+    },
+    {
+      "parameters": {
+        "url": "=https://ai-tool-pool--content-generation-service-content-gen-947ec6-dev.modal.run/generate/titles",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "jsonParameters": {
+          "parameters": [
+            {
+              "name": "transcript",
+              "value": "={{ $json.body.transcript }}"
+            },
+            {
+              "name": "content_type",
+              "value": "={{ $json.body.content_type || 'general' }}"
+            },
+            {
+              "name": "target_audience",
+              "value": "={{ $json.body.target_audience || 'general' }}"
+            },
+            {
+              "name": "additional_context",
+              "value": "={{ $json.body.additional_context || '' }}"
+            }
+          ]
+        }
+      },
+      "id": "call-titles-api",
+      "name": "Call Titles API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [540, 200]
+    },
+    {
+      "parameters": {
+        "url": "=https://ai-tool-pool--content-generation-service-content-gen-947ec6-dev.modal.run/generate/descriptions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "jsonParameters": {
+          "parameters": [
+            {
+              "name": "transcript",
+              "value": "={{ $json.body.transcript }}"
+            },
+            {
+              "name": "content_type",
+              "value": "={{ $json.body.content_type || 'general' }}"
+            },
+            {
+              "name": "target_audience",
+              "value": "={{ $json.body.target_audience || 'general' }}"
+            },
+            {
+              "name": "additional_context",
+              "value": "={{ $json.body.additional_context || '' }}"
+            }
+          ]
+        }
+      },
+      "id": "call-descriptions-api",
+      "name": "Call Descriptions API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [540, 400]
+    },
+    {
+      "parameters": {
+        "url": "=https://ai-tool-pool--content-generation-service-content-gen-947ec6-dev.modal.run/generate/image-prompts",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "jsonParameters": {
+          "parameters": [
+            {
+              "name": "transcript",
+              "value": "={{ $json.body.transcript }}"
+            },
+            {
+              "name": "content_type",
+              "value": "={{ $json.body.content_type || 'general' }}"
+            },
+            {
+              "name": "target_audience",
+              "value": "={{ $json.body.target_audience || 'general' }}"
+            },
+            {
+              "name": "additional_context",
+              "value": "={{ $json.body.additional_context || '' }}"
+            }
+          ]
+        }
+      },
+      "id": "call-image-prompts-api",
+      "name": "Call Image Prompts API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [540, 600]
+    },
+    {
+      "parameters": {
+        "url": "=https://ai-tool-pool--content-generation-service-content-gen-947ec6-dev.modal.run/generate/video-prompts",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "jsonParameters": {
+          "parameters": [
+            {
+              "name": "transcript",
+              "value": "={{ $json.body.transcript }}"
+            },
+            {
+              "name": "content_type",
+              "value": "={{ $json.body.content_type || 'general' }}"
+            },
+            {
+              "name": "target_audience",
+              "value": "={{ $json.body.target_audience || 'general' }}"
+            },
+            {
+              "name": "additional_context",
+              "value": "={{ $json.body.additional_context || '' }}"
+            }
+          ]
+        }
+      },
+      "id": "call-video-prompts-api",
+      "name": "Call Video Prompts API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [540, 800]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true, \"content\": $json.content, \"generation_time\": $json.generation_time, \"model_used\": $json.model_used, \"request_type\": \"titles\" } }}"
+      },
+      "id": "titles-response",
+      "name": "Titles Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [780, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true, \"content\": $json.content, \"generation_time\": $json.generation_time, \"model_used\": $json.model_used, \"request_type\": \"descriptions\" } }}"
+      },
+      "id": "descriptions-response",
+      "name": "Descriptions Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [780, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true, \"content\": $json.content, \"generation_time\": $json.generation_time, \"model_used\": $json.model_used, \"request_type\": \"image_prompts\" } }}"
+      },
+      "id": "image-prompts-response",
+      "name": "Image Prompts Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [780, 600]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true, \"content\": $json.content, \"generation_time\": $json.generation_time, \"model_used\": $json.model_used, \"request_type\": \"video_prompts\" } }}"
+      },
+      "id": "video-prompts-response",
+      "name": "Video Prompts Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [780, 800]
+    }
+  ],
+  "connections": {
+    "Generate Titles Webhook": {
+      "main": [
+        [
+          {
+            "node": "Call Titles API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Descriptions Webhook": {
+      "main": [
+        [
+          {
+            "node": "Call Descriptions API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Image Prompts Webhook": {
+      "main": [
+        [
+          {
+            "node": "Call Image Prompts API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Video Prompts Webhook": {
+      "main": [
+        [
+          {
+            "node": "Call Video Prompts API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Titles API": {
+      "main": [
+        [
+          {
+            "node": "Titles Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Descriptions API": {
+      "main": [
+        [
+          {
+            "node": "Descriptions Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Image Prompts API": {
+      "main": [
+        [
+          {
+            "node": "Image Prompts Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Video Prompts API": {
+      "main": [
+        [
+          {
+            "node": "Video Prompts Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "parameters": {},
+  "settings": {
+    "saveExecutionProgress": "manual",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all"
+  }
+}
