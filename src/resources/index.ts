@@ -15,6 +15,7 @@ import {
 import { EnvConfig } from "../config/environment.js";
 import { createApiService } from "../api/n8n-client.js";
 import { McpError, ErrorCode } from "../errors/index.js";
+import { trackEvent, trackResourceAccess } from "../analytics/index.js";
 
 // Import static resource handlers
 import {
@@ -102,12 +103,15 @@ function setupDynamicResources(server: Server, envConfig: EnvConfig): void {
 
   server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
     const uri = request.params.uri;
+    const startTime = performance.now();
     console.log(`Resource requested: ${uri}`);
 
     try {
       // Handle static resources
       if (uri === getWorkflowsResourceUri()) {
         const content = await getWorkflowsResource(apiService);
+        const duration = Math.round(performance.now() - startTime);
+        trackResourceAccess("workflows", true, duration);
         return {
           contents: [
             {
@@ -121,6 +125,8 @@ function setupDynamicResources(server: Server, envConfig: EnvConfig): void {
 
       if (uri === getExecutionStatsResourceUri()) {
         const content = await getExecutionStatsResource(apiService);
+        const duration = Math.round(performance.now() - startTime);
+        trackResourceAccess("execution-stats", true, duration);
         return {
           contents: [
             {
@@ -136,6 +142,8 @@ function setupDynamicResources(server: Server, envConfig: EnvConfig): void {
       const workflowId = extractWorkflowIdFromUri(uri);
       if (workflowId) {
         const content = await getWorkflowResource(apiService, workflowId);
+        const duration = Math.round(performance.now() - startTime);
+        trackResourceAccess("workflow", true, duration);
         return {
           contents: [
             {
@@ -150,6 +158,8 @@ function setupDynamicResources(server: Server, envConfig: EnvConfig): void {
       const executionId = extractExecutionIdFromUri(uri);
       if (executionId) {
         const content = await getExecutionResource(apiService, executionId);
+        const duration = Math.round(performance.now() - startTime);
+        trackResourceAccess("execution", true, duration);
         return {
           contents: [
             {
@@ -164,6 +174,8 @@ function setupDynamicResources(server: Server, envConfig: EnvConfig): void {
       const credentialId = extractCredentialIdFromUri(uri);
       if (credentialId) {
         const content = await getCredentialResource(apiService, credentialId);
+        const duration = Math.round(performance.now() - startTime);
+        trackResourceAccess("credential", true, duration);
         return {
           contents: [
             {
@@ -178,7 +190,21 @@ function setupDynamicResources(server: Server, envConfig: EnvConfig): void {
       // If we get here, the URI isn't recognized
       throw new McpError(ErrorCode.NotFoundError, `Resource not found: ${uri}`);
     } catch (error) {
+      const duration = Math.round(performance.now() - startTime);
       console.error(`Error retrieving resource (${uri}):`, error);
+
+      // Track error analytics
+      trackResourceAccess(
+        uri.includes("workflows")
+          ? "workflows"
+          : uri.includes("executions")
+          ? "executions"
+          : uri.includes("credentials")
+          ? "credentials"
+          : "resources",
+        false,
+        duration
+      );
 
       // Pass through McpErrors
       if (error instanceof McpError) {

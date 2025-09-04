@@ -5,8 +5,8 @@
   "main": "build/index.js",
   "type": "module",
   "scripts": {
-    "build": "tsc && chmod +x build/index.js",
-    "start": "node build/index.js",
+    "build": "tsc && chmod +x public/index.js",
+    "start": "node public/index.js",
     "dev": "tsc -w",
     "import:workflows": "node scripts/import-workflows.js",
     "lint": "eslint --ext .ts src/",
@@ -15,7 +15,7 @@
     "test:coverage": "node --experimental-vm-modules run-tests.js --coverage",
     "test:workflows": "node scripts/run-workflow-tests.js",
     "build:production": "npm run lint && npm test && npm run build",
-    "clean": "rm -rf build",
+    "clean": "rm -rf public",
     "postinstall": "npm run build",
     "validate:deployment": "node scripts/validate-deployment.js",
     "deploy:verify": "echo 'Deployment verification complete'",
@@ -42,14 +42,16 @@
   },
   "homepage": "https://github.com/leonardsellem/n8n-mcp-server#readme",
   "files": [
-    "build",
+    "public",
     "README.md",
     "LICENSE",
     "package.json"
   ],
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.17.5",
+    "@vercel/analytics": "^1.5.0",
     "@vercel/kv": "^1.0.1",
+    "@vercel/postgres": "^0.9.0",
     "axios": "^1.6.2",
     "dotenv": "^16.3.1",
     "find-config": "^1.0.0",

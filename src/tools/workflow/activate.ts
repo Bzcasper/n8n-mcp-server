@@ -9,6 +9,7 @@
 import { BaseWorkflowToolHandler } from "./base-handler.js";
 import { ToolCallResult, ToolDefinition } from "../../types/index.js";
 import { N8nApiError } from "../../errors/index.js";
+import { trackWorkflowPattern } from "../../analytics/index.js";
 
 /**
  * Handler for the activate_workflow tool
@@ -30,6 +31,11 @@ export class ActivateWorkflowHandler extends BaseWorkflowToolHandler {
 
       // Activate the workflow
       const workflow = await this.apiService.activateWorkflow(id);
+
+      // Track workflow activation pattern
+      const nodeCount = workflow.nodes?.length || 0;
+      const tagCount = workflow.tags?.length || 0;
+      trackWorkflowPattern("activate", nodeCount, tagCount);
 
       return this.formatSuccess(
         {

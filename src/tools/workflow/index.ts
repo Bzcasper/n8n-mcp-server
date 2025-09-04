@@ -44,6 +44,18 @@ import {
   getUpdateWorkflowTagsToolDefinition,
   UpdateWorkflowTagsHandler,
 } from "./tags.js";
+import {
+  getCreateAIMLWorkflowToolDefinition,
+  AIMLWorkflowHandler,
+  getCreateDataProcessingWorkflowToolDefinition,
+  DataProcessingHandler,
+} from "./aiml.js";
+import {
+  getCreateScheduledWorkflowToolDefinition,
+  SchedulingWorkflowHandler,
+  getCreateMonitoringWorkflowToolDefinition,
+  MonitoringWorkflowHandler,
+} from "./scheduling.js";
 
 // Export handlers
 export {
@@ -57,6 +69,10 @@ export {
   DeactivateWorkflowHandler,
   GetWorkflowTagsHandler,
   UpdateWorkflowTagsHandler,
+  AIMLWorkflowHandler,
+  DataProcessingHandler,
+  SchedulingWorkflowHandler,
+  MonitoringWorkflowHandler,
 };
 
 /**
@@ -76,5 +92,11 @@ export async function setupWorkflowTools(): Promise<ToolDefinition[]> {
     getDeactivateWorkflowToolDefinition(),
     getGetWorkflowTagsToolDefinition(),
     getUpdateWorkflowTagsToolDefinition(),
+    // AI/ML workflow tools
+    getCreateAIMLWorkflowToolDefinition(),
+    getCreateDataProcessingWorkflowToolDefinition(),
+    // Scheduling and monitoring tools
+    getCreateScheduledWorkflowToolDefinition(),
+    getCreateMonitoringWorkflowToolDefinition(),
   ];
 }

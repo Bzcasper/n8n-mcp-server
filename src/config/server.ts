@@ -19,6 +19,11 @@ import { setupCredentialTools } from "../tools/credential/index.js";
 import { setupUserTools } from "../tools/user/index.js";
 import { setupResourceHandlers } from "../resources/index.js";
 import { createApiService } from "../api/n8n-client.js";
+import {
+  trackToolCall,
+  trackEvent,
+  withAnalytics,
+} from "../analytics/index.js";
 
 // Import types
 import { ToolCallResult } from "../types/index.js";
@@ -137,6 +142,10 @@ function setupToolCallRequestHandler(server: Server): void {
       // Handle "prompts/list" as a special case, returning an empty success response
       // This is to address client calls for a method not central to n8n-mcp-server's direct n8n integration.
       if (toolName === "prompts/list") {
+        trackEvent("TOOL_CALLED", {
+          tool_name: toolName,
+          handled_special_case: true,
+        });
         return {
           content: [{ type: "text", text: "Prompts list acknowledged." }],
           isError: false,
@@ -178,85 +187,97 @@ function setupToolCallRequestHandler(server: Server): void {
         );
       }
 
-      // Route the tool call to the appropriate handler with individual error boundaries
-      try {
-        if (toolName === "n8n-workflow-list") {
-          const handler = new handlers.ListWorkflowsHandler();
-          result = await handler.execute(args);
-        } else if (toolName === "n8n-workflow-get") {
-          const handler = new handlers.GetWorkflowHandler();
-          result = await handler.execute(args);
-        } else if (toolName === "n8n-workflow-create") {
-          const handler = new handlers.CreateWorkflowHandler();
-          result = await handler.execute(args);
-        } else if (toolName === "n8n-workflow-update") {
-          const handler = new handlers.UpdateWorkflowHandler();
-          result = await handler.execute(args);
-        } else if (toolName === "n8n-workflow-delete") {
-          const handler = new handlers.DeleteWorkflowHandler();
-          result = await handler.execute(args);
-        } else if (toolName === "n8n-workflow-transfer") {
-          const handler = new handlers.TransferWorkflowHandler();
-          result = await handler.execute(args);
-        } else if (toolName === "n8n-workflow-activate") {
-          const handler = new handlers.ActivateWorkflowHandler();
-          result = await handler.execute(args);
-        } else if (toolName === "n8n-workflow-deactivate") {
-          const handler = new handlers.DeactivateWorkflowHandler();
-          result = await handler.execute(args);
-        } else if (toolName === "n8n-workflow-tags-get") {
-          const handler = new handlers.GetWorkflowTagsHandler();
-          result = await handler.execute(args);
-        } else if (toolName === "n8n-workflow-tags-update") {
-          const handler = new handlers.UpdateWorkflowTagsHandler();
-          result = await handler.execute(args);
-        } else if (toolName === "n8n-executions-list") {
-          const handler = new handlers.ListExecutionsHandler();
-          result = await handler.execute(args);
-        } else if (toolName === "n8n-executions-get") {
-          const handler = new handlers.GetExecutionHandler();
-          result = await handler.execute(args);
-        } else if (toolName === "n8n-executions-delete") {
-          const handler = new handlers.DeleteExecutionHandler();
-          result = await handler.execute(args);
-        } else if (toolName === "run_webhook") {
-          const handler = new handlers.RunWebhookHandler();
-          result = await handler.execute(args);
-        } else if (toolName === "n8n-credentials-create") {
-          const handler = new handlers.CreateCredentialHandler();
-          result = await handler.execute(args);
-        } else if (toolName === "n8n-credentials-delete") {
-          const handler = new handlers.DeleteCredentialHandler();
-          result = await handler.execute(args);
-        } else if (toolName === "n8n-credentials-schema-get") {
-          const handler = new handlers.GetCredentialSchemaHandler();
-          result = await handler.execute(args);
-        } else if (toolName === "n8n_credential_transfer") {
-          const handler = new handlers.TransferCredentialHandler();
-          result = await handler.execute(args);
-        } else if (toolName === "n8n-users-list") {
-          const handler = new handlers.ListUsersHandler();
-          result = await handler.execute(args);
-        } else if (toolName === "n8n-users-invite") {
-          const handler = new handlers.InviteUsersHandler();
-          result = await handler.execute(args);
-        } else {
-          console.error(`[MCP Server] Unknown tool: ${toolName}`);
-          throw new Error(`Unknown tool: ${toolName}`);
+      // Route the tool call to the appropriate handler with individual error boundaries and analytics
+      const handlerResult = await withAnalytics(
+        async () => {
+          if (toolName === "n8n-workflow-list") {
+            const handler = new handlers.ListWorkflowsHandler();
+            return await handler.execute(args);
+          } else if (toolName === "n8n-workflow-get") {
+            const handler = new handlers.GetWorkflowHandler();
+            return await handler.execute(args);
+          } else if (toolName === "n8n-workflow-create") {
+            const handler = new handlers.CreateWorkflowHandler();
+            return await handler.execute(args);
+          } else if (toolName === "n8n-workflow-update") {
+            const handler = new handlers.UpdateWorkflowHandler();
+            return await handler.execute(args);
+          } else if (toolName === "n8n-workflow-delete") {
+            const handler = new handlers.DeleteWorkflowHandler();
+            return await handler.execute(args);
+          } else if (toolName === "n8n-workflow-transfer") {
+            const handler = new handlers.TransferWorkflowHandler();
+            return await handler.execute(args);
+          } else if (toolName === "n8n-workflow-activate") {
+            const handler = new handlers.ActivateWorkflowHandler();
+            return await handler.execute(args);
+          } else if (toolName === "n8n-workflow-deactivate") {
+            const handler = new handlers.DeactivateWorkflowHandler();
+            return await handler.execute(args);
+          } else if (toolName === "n8n-workflow-tags-get") {
+            const handler = new handlers.GetWorkflowTagsHandler();
+            return await handler.execute(args);
+          } else if (toolName === "n8n-workflow-tags-update") {
+            const handler = new handlers.UpdateWorkflowTagsHandler();
+            return await handler.execute(args);
+          } else if (toolName === "n8n-executions-list") {
+            const handler = new handlers.ListExecutionsHandler();
+            return await handler.execute(args);
+          } else if (toolName === "n8n-executions-get") {
+            const handler = new handlers.GetExecutionHandler();
+            return await handler.execute(args);
+          } else if (toolName === "n8n-executions-delete") {
+            const handler = new handlers.DeleteExecutionHandler();
+            return await handler.execute(args);
+          } else if (toolName === "run_webhook") {
+            const handler = new handlers.RunWebhookHandler();
+            return await handler.execute(args);
+          } else if (toolName === "n8n-credentials-create") {
+            const handler = new handlers.CreateCredentialHandler();
+            return await handler.execute(args);
+          } else if (toolName === "n8n-credentials-delete") {
+            const handler = new handlers.DeleteCredentialHandler();
+            return await handler.execute(args);
+          } else if (toolName === "n8n-credentials-schema-get") {
+            const handler = new handlers.GetCredentialSchemaHandler();
+            return await handler.execute(args);
+          } else if (toolName === "n8n_credential_transfer") {
+            const handler = new handlers.TransferCredentialHandler();
+            return await handler.execute(args);
+          } else if (toolName === "n8n-users-list") {
+            const handler = new handlers.ListUsersHandler();
+            return await handler.execute(args);
+          } else if (toolName === "n8n-users-invite") {
+            const handler = new handlers.InviteUsersHandler();
+            return await handler.execute(args);
+          } else {
+            console.error(`[MCP Server] Unknown tool: ${toolName}`);
+            throw new Error(`Unknown tool: ${toolName}`);
+          }
+        },
+        (result, duration) => {
+          // Success callback - track with precise timing
+          trackToolCall(toolName, true, duration);
+          console.log(
+            `[MCP Server] Tool executed successfully: ${toolName} (${duration}ms)`
+          );
+        },
+        (error, duration) => {
+          // Error callback - re-throw for downstream error handling
+          trackToolCall(
+            toolName,
+            false,
+            duration,
+            error instanceof Error ? error.name : "UnknownError"
+          );
+          console.log(
+            `[MCP Server] Tool execution failed: ${toolName} (${duration}ms)`
+          );
+          throw error;
         }
-      } catch (handlerError) {
-        console.error(
-          `[MCP Server] Handler execution error for ${toolName}:`,
-          handlerError
-        );
+      );
 
-        // Re-throw with structured error info
-        if (handlerError instanceof Error) {
-          throw handlerError;
-        } else {
-          throw new Error(`Handler failed: ${String(handlerError)}`);
-        }
-      }
+      result = handlerResult;
 
       // Converting to MCP SDK expected format
       return {
@@ -266,11 +287,18 @@ function setupToolCallRequestHandler(server: Server): void {
     } catch (error) {
       console.error(`[MCP Server] Tool call error for ${toolName}:`, error);
 
-      // Provide structured error response
+      // Track error analytics
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
+      const errorType = error instanceof Error ? error.name : "UnknownError";
       const isTimeout =
         errorMessage.includes("timeout") || errorMessage.includes("408");
+
+      if (isTimeout) {
+        trackEvent("API_TIMEOUT", { tool_name: toolName });
+      }
+
+      trackToolCall(toolName, false, undefined, errorType);
 
       return {
         content: [

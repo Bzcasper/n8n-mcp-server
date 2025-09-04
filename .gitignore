@@ -12,6 +12,12 @@ coverage/
 # Build outputs
 dist/
 build/
+public/index.js
+public/index.js.map
+public/index.d.ts
+api/*.js
+api/*.js.map
+api/*.d.ts
 
 # Logs
 logs

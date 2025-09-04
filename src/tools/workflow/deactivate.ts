@@ -9,6 +9,7 @@
 import { BaseWorkflowToolHandler } from "./base-handler.js";
 import { ToolCallResult, ToolDefinition } from "../../types/index.js";
 import { N8nApiError } from "../../errors/index.js";
+import { trackWorkflowPattern } from "../../analytics/index.js";
 
 /**
  * Handler for the n8n-workflow-deactivate tool
@@ -30,6 +31,11 @@ export class DeactivateWorkflowHandler extends BaseWorkflowToolHandler {
 
       // Deactivate the workflow
       const workflow = await this.apiService.deactivateWorkflow(id);
+
+      // Track workflow deactivation pattern
+      const nodeCount = workflow.nodes?.length || 0;
+      const tagCount = workflow.tags?.length || 0;
+      trackWorkflowPattern("deactivate", nodeCount, tagCount);
 
       return this.formatSuccess(
         {

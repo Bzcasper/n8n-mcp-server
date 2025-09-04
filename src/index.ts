@@ -1,14 +1,17 @@
 #!/usr/bin/env node
 /**
  * n8n MCP Server - Main Entry Point
- * 
+ *
  * This file serves as the entry point for the n8n MCP Server,
  * which allows AI assistants to interact with n8n workflows through the MCP protocol.
+ *
+ * @format
  */
 
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { loadEnvironmentVariables } from './config/environment.js';
-import { configureServer } from './config/server.js';
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { loadEnvironmentVariables } from "./config/environment.js";
+import { configureServer } from "./config/server.js";
+import { trackServerEvent } from "./analytics/index.js";
 
 // Load environment variables
 loadEnvironmentVariables();
@@ -18,17 +21,26 @@ loadEnvironmentVariables();
  */
 async function main() {
   try {
-    console.error('Starting n8n MCP Server...');
+    console.error("Starting n8n MCP Server...");
+
+    // Track server start event
+    trackServerEvent("start");
 
     // Create and configure the MCP server
     const server = await configureServer();
 
-    // Set up error handling
-    server.onerror = (error: unknown) => console.error('[MCP Error]', error);
+    // Set up error handling with analytics
+    server.onerror = (error: unknown) => {
+      console.error("[MCP Error]", error);
+      trackServerEvent(
+        "error",
+        error instanceof Error ? error.name : "unknown"
+      );
+    };
 
     // Set up clean shutdown
-    process.on('SIGINT', async () => {
-      console.error('Shutting down n8n MCP Server...');
+    process.on("SIGINT", async () => {
+      console.error("Shutting down n8n MCP Server...");
       await server.close();
       process.exit(0);
     });
@@ -37,9 +49,10 @@ async function main() {
     const transport = new StdioServerTransport();
     await server.connect(transport);
 
-    console.error('n8n MCP Server running on stdio');
+    console.error("n8n MCP Server running on stdio");
   } catch (error) {
-    console.error('Failed to start n8n MCP Server:', error);
+    console.error("Failed to start n8n MCP Server:", error);
+    trackServerEvent("error", error instanceof Error ? error.name : "unknown");
     process.exit(1);
   }
 }

@@ -28,6 +28,22 @@ export const ENV_VARS = {
   VERCEL_ENV: "VERCEL_ENV",
   DEBUG: "DEBUG",
   REDIS_URL: "REDIS_URL",
+  POSTGRES_URL: "POSTGRES_URL",
+  POSTGRES_USER: "POSTGRES_USER",
+  POSTGRES_HOST: "POSTGRES_HOST",
+  POSTGRES_PASSWORD: "POSTGRES_PASSWORD",
+  POSTGRES_DATABASE: "POSTGRES_DATABASE",
+  SUPABASE_URL: "SUPABASE_URL",
+  SUPABASE_ANON_KEY: "SUPABASE_ANON_KEY",
+  SUPABASE_SERVICE_ROLE_KEY: "SUPABASE_SERVICE_ROLE_KEY",
+  SUPABASE_JWT_SECRET: "SUPABASE_JWT_SECRET",
+  POSTGRES_PRISMA_URL: "POSTGRES_PRISMA_URL",
+  POSTGRES_URL_NON_POOLING: "POSTGRES_URL_NON_POOLING",
+  NEXT_PUBLIC_SUPABASE_URL: "NEXT_PUBLIC_SUPABASE_URL",
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+  DISABLE_ANALYTICS: "DISABLE_ANALYTICS",
+  DATABASE_TIMEOUT: "DATABASE_TIMEOUT",
+  DATABASE_MAX_CONNECTIONS: "DATABASE_MAX_CONNECTIONS",
 };
 
 // Interface for validated environment variables
@@ -45,6 +61,21 @@ export interface EnvConfig {
   vercelEnv?: string;
   debug: boolean;
   redisUrl?: string;
+  postgresUrl?: string;
+  postgresUser?: string;
+  postgresHost?: string;
+  postgresPassword?: string;
+  postgresDatabase?: string;
+  supabaseUrl?: string;
+  supabaseAnonKey?: string;
+  supabaseServiceRoleKey?: string;
+  supabaseJwtSecret?: string;
+  postgresPrismaUrl?: string;
+  postgresUrlNonPooling?: string;
+  nextPublicSupabaseUrl?: string;
+  nextPublicSupabaseAnonKey?: string;
+  databaseTimeout: number;
+  databaseMaxConnections: number;
 }
 
 /**
@@ -100,6 +131,29 @@ export function getEnvConfig(): EnvConfig {
   const vercelEnv = process.env[ENV_VARS.VERCEL_ENV];
   const debug = process.env[ENV_VARS.DEBUG]?.toLowerCase() === "true";
   const redisUrl = process.env[ENV_VARS.REDIS_URL];
+  const postgresUrl = process.env[ENV_VARS.POSTGRES_URL];
+  const postgresUser = process.env[ENV_VARS.POSTGRES_USER];
+  const postgresHost = process.env[ENV_VARS.POSTGRES_HOST];
+  const postgresPassword = process.env[ENV_VARS.POSTGRES_PASSWORD];
+  const postgresDatabase = process.env[ENV_VARS.POSTGRES_DATABASE];
+  const supabaseUrl = process.env[ENV_VARS.SUPABASE_URL];
+  const supabaseAnonKey = process.env[ENV_VARS.SUPABASE_ANON_KEY];
+  const supabaseServiceRoleKey =
+    process.env[ENV_VARS.SUPABASE_SERVICE_ROLE_KEY];
+  const supabaseJwtSecret = process.env[ENV_VARS.SUPABASE_JWT_SECRET];
+  const postgresPrismaUrl = process.env[ENV_VARS.POSTGRES_PRISMA_URL];
+  const postgresUrlNonPooling = process.env[ENV_VARS.POSTGRES_URL_NON_POOLING];
+  const nextPublicSupabaseUrl = process.env[ENV_VARS.NEXT_PUBLIC_SUPABASE_URL];
+  const nextPublicSupabaseAnonKey =
+    process.env[ENV_VARS.NEXT_PUBLIC_SUPABASE_ANON_KEY];
+  const databaseTimeout = parseInt(
+    process.env[ENV_VARS.DATABASE_TIMEOUT] || "10000",
+    10
+  );
+  const databaseMaxConnections = parseInt(
+    process.env[ENV_VARS.DATABASE_MAX_CONNECTIONS] || "5",
+    10
+  );
 
   // Validate required core environment variables
   if (!n8nApiUrl) {
@@ -188,6 +242,72 @@ export function getEnvConfig(): EnvConfig {
     }
   }
 
+  // Validate PostgreSQL URL format if provided
+  if (postgresUrl) {
+    try {
+      new URL(postgresUrl);
+    } catch (error) {
+      throw new McpError(
+        ErrorCode.InitializationError,
+        `Invalid URL format for ${ENV_VARS.POSTGRES_URL}: ${postgresUrl}`
+      );
+    }
+  }
+
+  // Validate Supabase URL format if provided
+  if (supabaseUrl) {
+    try {
+      new URL(supabaseUrl);
+    } catch (error) {
+      throw new McpError(
+        ErrorCode.InitializationError,
+        `Invalid URL format for ${ENV_VARS.SUPABASE_URL}: ${supabaseUrl}`
+      );
+    }
+  }
+
+  // Validate Supabase keys format if provided (JWT tokens should be reasonably long)
+  if (
+    supabaseAnonKey &&
+    (supabaseAnonKey.length < 100 || !supabaseAnonKey.startsWith("eyJ"))
+  ) {
+    throw new McpError(
+      ErrorCode.InitializationError,
+      `Invalid format for ${ENV_VARS.SUPABASE_ANON_KEY}: should be a valid JWT token starting with 'eyJ'`
+    );
+  }
+
+  if (
+    supabaseServiceRoleKey &&
+    (supabaseServiceRoleKey.length < 100 ||
+      !supabaseServiceRoleKey.startsWith("eyJ"))
+  ) {
+    throw new McpError(
+      ErrorCode.InitializationError,
+      `Invalid format for ${ENV_VARS.SUPABASE_SERVICE_ROLE_KEY}: should be a valid JWT token starting with 'eyJ'`
+    );
+  }
+
+  // Validate database timeout
+  if (isNaN(databaseTimeout) || databaseTimeout <= 0) {
+    throw new McpError(
+      ErrorCode.InitializationError,
+      `Invalid database timeout for ${ENV_VARS.DATABASE_TIMEOUT}: must be a positive number, got ${databaseTimeout}`
+    );
+  }
+
+  // Validate database max connections
+  if (
+    isNaN(databaseMaxConnections) ||
+    databaseMaxConnections <= 0 ||
+    databaseMaxConnections > 100
+  ) {
+    throw new McpError(
+      ErrorCode.InitializationError,
+      `Invalid database max connections for ${ENV_VARS.DATABASE_MAX_CONNECTIONS}: must be between 1-100, got ${databaseMaxConnections}`
+    );
+  }
+
   return {
     n8nApiUrl,
     n8nApiKey,
@@ -202,5 +322,20 @@ export function getEnvConfig(): EnvConfig {
     vercelEnv: vercelEnv || undefined,
     debug,
     redisUrl: redisUrl || undefined,
+    postgresUrl: postgresUrl || undefined,
+    postgresUser: postgresUser || undefined,
+    postgresHost: postgresHost || undefined,
+    postgresPassword: postgresPassword || undefined,
+    postgresDatabase: postgresDatabase || undefined,
+    supabaseUrl: supabaseUrl || undefined,
+    supabaseAnonKey: supabaseAnonKey || undefined,
+    supabaseServiceRoleKey: supabaseServiceRoleKey || undefined,
+    supabaseJwtSecret: supabaseJwtSecret || undefined,
+    postgresPrismaUrl: postgresPrismaUrl || undefined,
+    postgresUrlNonPooling: postgresUrlNonPooling || undefined,
+    nextPublicSupabaseUrl: nextPublicSupabaseUrl || undefined,
+    nextPublicSupabaseAnonKey: nextPublicSupabaseAnonKey || undefined,
+    databaseTimeout,
+    databaseMaxConnections,
   };
 }

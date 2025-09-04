@@ -39,6 +39,14 @@ if [ "$NODE_VERSION" -lt 20 ]; then
 fi
 echo "✅ Node.js version: $(node --version) (>=20 required)"
 
+# Set up environment variables
+echo "🔧 Setting up environment variables..."
+if ! ./scripts/setup-environment.sh; then
+    echo "❌ Environment setup failed. Please fix the issues above and try again."
+    exit 1
+fi
+echo "✅ Environment variables configured."
+
 # Run pre-deployment validations
 echo "🔍 Running deployment validation..."
 if ! npm run validate:deployment; then

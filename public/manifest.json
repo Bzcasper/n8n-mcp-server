@@ -1,0 +1,21 @@
+{
+  "name": "n8n MCP Server",
+  "short_name": "n8n MCP",
+  "description": "Model Context Protocol (MCP) server for n8n workflow automation",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "16x16 32x32 64x64",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ]
+}
