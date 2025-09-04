@@ -55,7 +55,7 @@ export async function executeTransaction(
   const results: any[] = [];
 
   try {
-    // @ts-ignore - Vercel Postgres transaction handling
+    // @ts-expect-error - Vercel Postgres transaction handling
     await sql.begin(async (tx: any) => {
       for (const { query, params = [] } of queries) {
         const result = await tx.unsafe(query, params);

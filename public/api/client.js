@@ -18,23 +18,42 @@ export class N8nApiClient {
      */
     constructor(config) {
         this.config = config;
-        this.axiosInstance = axios.create({
+        // Prepare axios configuration
+        const axiosConfig = {
             baseURL: config.n8nApiUrl,
             headers: {
                 "X-N8N-API-KEY": config.n8nApiKey,
                 Accept: "application/json",
             },
             timeout: config.n8nApiTimeout, // Use configured timeout
-        });
+        };
+        // Handle HTTP vs HTTPS settings
+        if (config.n8nApiUrl.startsWith("http://")) {
+            // Allow HTTP connections - disable SSL verification for HTTP URLs
+            axiosConfig.httpsAgent = false;
+            axiosConfig.validateStatus = function (status) {
+                return status < 500; // Accept all responses except server errors
+            };
+        }
+        else if (config.n8nApiUrl.startsWith("https://")) {
+            // For HTTPS, you can add SSL options if needed for development
+            // axiosConfig.httpsAgent = new https.Agent({
+            //   rejectUnauthorized: !process.env.NODE_ENV?.includes('development')
+            // });
+        }
+        this.axiosInstance = axios.create(axiosConfig);
         // Add request debugging if debug mode is enabled
         if (config.debug) {
             this.axiosInstance.interceptors.request.use((request) => {
-                console.error(`[DEBUG] Request: ${request.method?.toUpperCase()} ${request.url}`);
+                console.error(`[DEBUG] Request: ${request.method?.toUpperCase()} ${request.baseURL}${request.url}`);
                 return request;
             });
             this.axiosInstance.interceptors.response.use((response) => {
                 console.error(`[DEBUG] Response: ${response.status} ${response.statusText}`);
                 return response;
+            }, (error) => {
+                console.error(`[DEBUG] Response Error: ${error.response?.status} ${error.response?.statusText}`, error.message);
+                throw error;
             });
         }
     }

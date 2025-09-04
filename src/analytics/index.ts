@@ -7,7 +7,7 @@
  * @format
  */
 
-import { track } from "@vercel/analytics";
+import { track } from "@vercel/analytics/server";
 
 // Environment variable to disable analytics (for testing/privacy)
 const IS_ANALYTICS_DISABLED = process.env.DISABLE_ANALYTICS === "true";

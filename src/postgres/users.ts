@@ -8,7 +8,7 @@
  */
 
 import { sql } from "@vercel/postgres";
-import { query } from "./client.js";
+import { query as _query } from "./client.js";
 import { McpError } from "@modelcontextprotocol/sdk/types.js";
 import { ErrorCode } from "../errors/error-codes.js";
 
@@ -41,7 +41,7 @@ export interface UserSession {
   userId: string;
   startedAt: string;
   lastActivity: string;
-  userAgent?: string;
+  _userAgent?: string;
   ipAddress?: string;
   location?: Record<string, any>;
   tokenHash?: string;
@@ -57,7 +57,7 @@ export async function createUser(
 ): Promise<string> {
   const userId = crypto.randomUUID();
 
-  // @ts-ignore - User creation query
+  // @ts-expect-error - User creation query
   await sql`
     INSERT INTO mcp_users (
       user_id, email, username, display_name, role, is_active,
@@ -81,7 +81,7 @@ export async function createUser(
  * Get user by ID
  */
 export async function getUserById(userId: string): Promise<MCPUser | null> {
-  // @ts-ignore - User lookup query
+  // @ts-expect-error - User lookup query
   const result = await sql`
     SELECT * FROM mcp_users WHERE user_id = ${userId}
   `;
@@ -114,7 +114,7 @@ export async function getUserById(userId: string): Promise<MCPUser | null> {
 export async function getUserByCredentials(
   identifier: string
 ): Promise<MCPUser | null> {
-  // @ts-ignore - User lookup by credentials
+  // @ts-expect-error - User lookup by credentials
   const result = await sql`
     SELECT * FROM mcp_users
     WHERE (email = ${identifier} OR username = ${identifier}) AND is_active = true
@@ -209,7 +209,7 @@ export async function updateUser(
     WHERE user_id = ?
   `;
 
-  // @ts-ignore - Dynamic user update query
+  // @ts-expect-error - Dynamic user update query
   await sql.unsafe(
     sqlQuery.replace(
       /\?/g,
@@ -229,14 +229,14 @@ export async function deleteUser(
 ): Promise<void> {
   if (hardDelete) {
     // Complete data removal
-    // @ts-ignore - User deletion queries
+    // @ts-expect-error - User deletion queries
     await sql`DELETE FROM mcp_user_sessions WHERE user_id = ${userId}`;
     await sql`DELETE FROM mcp_executions WHERE user_id = ${userId}`;
     await sql`DELETE FROM mcp_users WHERE user_id = ${userId}`;
   } else {
     // Soft delete by anonymizing and deactivating
     const anonymousId = `deleted_${crypto.randomUUID()}`;
-    // @ts-ignore - User anonymization update
+    // @ts-expect-error - User anonymization update
     await sql`
       UPDATE mcp_users
       SET email = NULL,
@@ -257,9 +257,9 @@ export async function deleteUser(
 export async function recordLogin(
   userId: string,
   ipAddress?: string,
-  userAgent?: string
+  _userAgent?: string
 ): Promise<void> {
-  // @ts-ignore - Login recording update
+  // @ts-expect-error - Login recording update
   await sql`
     UPDATE mcp_users
     SET last_login = NOW(),
@@ -279,7 +279,7 @@ export async function recordLogin(
 export async function createSession(
   userId: string,
   options: {
-    userAgent?: string;
+    _userAgent?: string;
     ipAddress?: string;
     location?: Record<string, any>;
     tokenHash?: string;
@@ -288,13 +288,13 @@ export async function createSession(
 ): Promise<string> {
   const sessionId = crypto.randomUUID();
 
-  // @ts-ignore - Session creation query
+  // @ts-expect-error - Session creation query
   await sql`
     INSERT INTO mcp_user_sessions (
       session_id, user_id, user_agent, ip_address, location,
       token_hash, expires_at
     ) VALUES (
-      ${sessionId}, ${userId}, ${options.userAgent || null},
+      ${sessionId}, ${userId}, ${options._userAgent || null},
       ${options.ipAddress || null},
       ${options.location ? JSON.stringify(options.location) : null},
       ${options.tokenHash || null},
@@ -311,7 +311,7 @@ export async function createSession(
 export async function getActiveSession(
   sessionId: string
 ): Promise<UserSession | null> {
-  // @ts-ignore - Session lookup query
+  // @ts-expect-error - Session lookup query
   const result = await sql`
     SELECT * FROM mcp_user_sessions
     WHERE session_id = ${sessionId} AND is_active = true
@@ -326,7 +326,7 @@ export async function getActiveSession(
     userId: row.user_id,
     startedAt: row.started_at.toISOString(),
     lastActivity: row.last_activity.toISOString(),
-    userAgent: row.user_agent,
+    _userAgent: row.user_agent,
     ipAddress: row.ip_address,
     location: row.location,
     tokenHash: row.token_hash,
@@ -339,7 +339,7 @@ export async function getActiveSession(
  * Update session activity
  */
 export async function updateSessionActivity(sessionId: string): Promise<void> {
-  // @ts-ignore - Session activity update
+  // @ts-expect-error - Session activity update
   await sql`
     UPDATE mcp_user_sessions
     SET last_activity = NOW()
@@ -351,7 +351,7 @@ export async function updateSessionActivity(sessionId: string): Promise<void> {
  * Expire session
  */
 export async function expireSession(sessionId: string): Promise<void> {
-  // @ts-ignore - Session expiration update
+  // @ts-expect-error - Session expiration update
   await sql`
     UPDATE mcp_user_sessions
     SET is_active = false, expires_at = NOW()
@@ -363,7 +363,7 @@ export async function expireSession(sessionId: string): Promise<void> {
  * Clean up expired sessions
  */
 export async function cleanupExpiredSessions(): Promise<number> {
-  // @ts-ignore - Session cleanup query
+  // @ts-expect-error - Session cleanup query
   const result = await sql`
     UPDATE mcp_user_sessions
     SET is_active = false
@@ -379,7 +379,7 @@ export async function cleanupExpiredSessions(): Promise<number> {
 export async function getUserActiveSessions(
   userId: string
 ): Promise<UserSession[]> {
-  // @ts-ignore - User sessions lookup
+  // @ts-expect-error - User sessions lookup
   const result = await sql`
     SELECT * FROM mcp_user_sessions
     WHERE user_id = ${userId} AND is_active = true
@@ -392,7 +392,7 @@ export async function getUserActiveSessions(
     userId: row.user_id,
     startedAt: row.started_at.toISOString(),
     lastActivity: row.last_activity.toISOString(),
-    userAgent: row.user_agent,
+    _userAgent: row.user_agent,
     ipAddress: row.ip_address,
     location: row.location,
     tokenHash: row.token_hash,
@@ -408,7 +408,7 @@ export async function authenticateUser(
   identifier: string,
   passwordHash: string
 ): Promise<MCPUser | null> {
-  // @ts-ignore - User authentication query
+  // @ts-expect-error - User authentication query
   const result = await sql`
     SELECT *,
            CASE WHEN password_hash IS NOT NULL AND password_hash = ${passwordHash}
@@ -476,7 +476,7 @@ export async function getUserAnalytics(
   workflowsCreated: number;
   uniqueWorkflowsUsed: number;
 }> {
-  // @ts-ignore - User analytics aggregation query
+  // @ts-expect-error - User analytics aggregation query
   const result = await sql`
     WITH session_stats AS (
       SELECT
@@ -548,7 +548,7 @@ export async function exportUserData(userId: string): Promise<{
 
   const sessions = await getUserActiveSessions(userId);
 
-  // @ts-ignore - User executions export query
+  // @ts-expect-error - User executions export query
   const executionsResult = await sql`
     SELECT id, status, started_at as timestamp
     FROM mcp_executions
@@ -578,7 +578,7 @@ export async function enforceDataRetention(): Promise<number> {
   const deletedCount = { sessions: 0, executions: 0 };
 
   // Clean up sessions older than retention period
-  // @ts-ignore - Data retention cleanup for sessions
+  // @ts-expect-error - Data retention cleanup for sessions
   const sessionResult = await sql`
     UPDATE mcp_user_sessions
     SET is_active = false
@@ -588,7 +588,7 @@ export async function enforceDataRetention(): Promise<number> {
   deletedCount.sessions = sessionResult.rowCount || 0;
 
   // Clean up executions for users with data retention policies
-  // @ts-ignore - Data retention cleanup for executions
+  // @ts-expect-error - Data retention cleanup for executions
   const executionResult = await sql`
     DELETE FROM mcp_executions
     WHERE user_id IN (

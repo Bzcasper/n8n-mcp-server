@@ -225,7 +225,6 @@ export class WorkflowDataAccess {
     const cacheKey = `workflows:list:${limit}:${offset}`;
 
     return this.cache.get(cacheKey, async () => {
-      // @ts-ignore - Paginated workflow query
       const result = await sql`
         SELECT * FROM mcp_workflows
         WHERE active = true
@@ -241,7 +240,6 @@ export class WorkflowDataAccess {
     const workflowId = crypto.randomUUID();
 
     try {
-      // @ts-ignore - Workflow creation
       await sql`
         INSERT INTO mcp_workflows (
           id, name, nodes, connections, created_by, active
@@ -289,7 +287,7 @@ export class WorkflowDataAccess {
 
       setStatements.push("updated_at = NOW()");
 
-      const sqlQuery = `UPDATE mcp_workflows SET ${setStatements.join(
+      const _sqlQuery = `UPDATE mcp_workflows SET ${setStatements.join(
         ", "
       )} WHERE id = ?`;
 
@@ -326,7 +324,7 @@ export class ExecutionDataAccess {
 
   async getExecution(id: string): Promise<any> {
     return this.cache.get(`execution:${id}`, async () => {
-      // @ts-ignore - Execution lookup
+      // @ts-expect-error - Execution lookup
       const result = await sql`SELECT * FROM mcp_executions WHERE id = ${id}`;
 
       if (result.rows.length === 0) {
@@ -346,10 +344,10 @@ export class ExecutionDataAccess {
       : `executions:all:${limit}`;
 
     return this.cache.get(cacheKey, async () => {
-      let query, params;
+      let query, _params;
 
       if (workflowId) {
-        // @ts-ignore - Workflow-specific executions
+        // @ts-expect-error - Workflow-specific executions
         query = await sql`
           SELECT * FROM mcp_executions
           WHERE workflow_id = ${workflowId}
@@ -357,7 +355,7 @@ export class ExecutionDataAccess {
           LIMIT ${limit}
         `;
       } else {
-        // @ts-ignore - All executions
+        // @ts-expect-error - All executions
         query = await sql`
           SELECT * FROM mcp_executions
           ORDER BY started_at DESC
@@ -373,7 +371,7 @@ export class ExecutionDataAccess {
     const executionId = crypto.randomUUID();
 
     try {
-      // @ts-ignore - Execution creation
+      // @ts-expect-error - Execution creation
       await sql`
         INSERT INTO mcp_executions (
           id, workflow_id, status, user_id, webhook_trigger
@@ -391,7 +389,7 @@ export class ExecutionDataAccess {
     }
   }
 
-  async updateExecution(id: string, updates: any): Promise<void> {
+  async updateExecution(id: string, _updates: any): Promise<void> {
     try {
       // Delete specific execution cache
       await this.cache.delete(`execution:${id}`);
@@ -421,7 +419,7 @@ export class UserDataAccess {
 
   async getUser(userId: string): Promise<any> {
     return this.cache.get(`user:${userId}`, async () => {
-      // @ts-ignore - User lookup
+      // @ts-expect-error - User lookup
       const result = await sql`
         SELECT user_id, email, username, display_name, role, is_active, created_at, last_login
         FROM mcp_users WHERE user_id = ${userId}
@@ -440,7 +438,7 @@ export class UserDataAccess {
 
   async validateSession(sessionId: string): Promise<any> {
     return this.cache.get(`session:${sessionId}`, async () => {
-      // @ts-ignore - Session validation
+      // @ts-expect-error - Session validation
       const result = await sql`
         SELECT u.user_id, u.username, u.display_name, u.role, s.started_at
         FROM mcp_user_sessions s
@@ -481,7 +479,7 @@ export class AnalyticsDataAccess {
     const cacheKey = `analytics:workflows:${days}`;
 
     return this.cache.get(cacheKey, async () => {
-      // @ts-ignore - Analytics aggregation query
+      // @ts-expect-error - Analytics aggregation query
       const result = await sql`
         SELECT
           w.id,
@@ -512,7 +510,7 @@ export class AnalyticsDataAccess {
     const cacheKey = "analytics:system:overview";
 
     return this.cache.get(cacheKey, async () => {
-      // @ts-ignore - System overview query
+      // @ts-expect-error - System overview query
       const [workflowStats, userStats, executionStats] = await Promise.all([
         sql`SELECT COUNT(*) as count FROM mcp_workflows WHERE active = true`,
         sql`SELECT COUNT(*) as count FROM mcp_users WHERE is_active = true`,

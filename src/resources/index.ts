@@ -15,7 +15,7 @@ import {
 import { EnvConfig } from "../config/environment.js";
 import { createApiService } from "../api/n8n-client.js";
 import { McpError, ErrorCode } from "../errors/index.js";
-import { trackEvent, trackResourceAccess } from "../analytics/index.js";
+import { trackResourceAccess } from "../analytics/index.js";
 
 // Import static resource handlers
 import {

@@ -118,7 +118,6 @@ export async function getExecutionTrends(
     week: "YYYY-WW",
   };
 
-  // @ts-ignore - Complex time-based analytics query
   const result = await sql`
     WITH execution_stats AS (
       SELECT
@@ -176,7 +175,6 @@ export async function getUserActivitySummary(
   days: number = 30,
   limit: number = 100
 ): Promise<UserActivity[]> {
-  // @ts-ignore - Complex user analytics query
   const result = await sql`
     SELECT
       u.user_id,
@@ -230,7 +228,6 @@ export async function getPerformanceMetricsByType(days: number = 7): Promise<
     trendChange: number;
   }>
 > {
-  // @ts-ignore - Complex performance metrics query
   const result = await sql`
     WITH daily_metrics AS (
       SELECT
@@ -312,7 +309,6 @@ export async function getErrorAnalysis(
     impactScore: number;
   }>
 > {
-  // @ts-ignore - Complex error analysis query
   const result = await sql`
     WITH error_stats AS (
       SELECT
@@ -381,7 +377,6 @@ export async function getSystemHealthOverview(): Promise<{
     timestamp: string;
   }>;
 }> {
-  // @ts-ignore - Complex system health query
   const workflowStats = await sql`
     SELECT
       COUNT(DISTINCT w.id) as total_workflows,
@@ -389,7 +384,6 @@ export async function getSystemHealthOverview(): Promise<{
     FROM mcp_workflows w;
   `;
 
-  // @ts-ignore
   const executionStats = await sql`
     SELECT
       COUNT(*) as total_executions,
@@ -402,7 +396,6 @@ export async function getSystemHealthOverview(): Promise<{
     WHERE started_at >= NOW() - INTERVAL '24 hours';
   `;
 
-  // @ts-ignore
   const userStats = await sql`
     SELECT
       COUNT(DISTINCT u.user_id) as total_users,
@@ -410,7 +403,6 @@ export async function getSystemHealthOverview(): Promise<{
     FROM mcp_users u;
   `;
 
-  // @ts-ignore
   const errorStats = await sql`
     SELECT
       w.name as workflow_name,
