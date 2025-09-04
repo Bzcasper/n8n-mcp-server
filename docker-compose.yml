@@ -1,0 +1,11 @@
+# @format
+
+version: "3.8"
+services:
+  n8n-mcp-server:
+    image: bzcasper/n8n-mcp-server:0.1.9
+    environment:
+      - N8N_API_URL=https://n8n.trendradar.ai/api/v1
+      - N8N_API_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxOWI4NmVmNy05ZGIzLTQ4NTktYjMwMy1iOGE1ZmM5MDg5NDkiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzU2OTI5NTUzLCJleHAiOjE3NTk0NjQwMDB9.iaVDVzWT3ErHcszsUZR_3rAmfrkdWWKEvCc_2H5n6ic
+      - N8N_WEBHOOK_USERNAME=bzcasper
+      - "N8N_WEBHOOK_PASSWORD=Bcmoney69$$"

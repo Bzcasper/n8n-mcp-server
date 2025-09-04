@@ -1,180 +1,123 @@
-import { jest, describe, test, expect, beforeEach, afterEach } from '@jest/globals';
-import fs from 'fs';
-import path from 'path';
-import findConfig from 'find-config'; // Use the actual find-config
+/**
+ * Environment Configuration Tests
+ *
+ * @format
+ */
 
-import { loadEnvironmentVariables } from '../../../src/config/environment';
-import { ENV_VARS } from '../../../src/config/environment'; // To access defined var names
+import { describe, it, expect, jest, beforeEach } from "@jest/globals";
 
-// Determine project root for placing dummy .env file
-let projectRootDir: string | null = null;
-let dummyEnvPath: string | null = null;
-
-try {
-  const packageJsonPath = findConfig('package.json');
-  if (packageJsonPath) {
-    projectRootDir = path.dirname(packageJsonPath);
-    dummyEnvPath = path.resolve(projectRootDir, '.env.test_dummy'); // Use a distinct name
-  } else {
-    console.error("Could not find project root (package.json). Tests involving .env file might fail or be skipped.");
-  }
-} catch (e) {
-  console.error("Error finding project root:", e);
-}
-
-
-const originalEnv = { ...process.env };
-
-const clearTestEnvVars = () => {
-  delete process.env[ENV_VARS.N8N_API_URL];
-  delete process.env[ENV_VARS.N8N_API_KEY];
-  delete process.env[ENV_VARS.N8N_WEBHOOK_USERNAME];
-  delete process.env[ENV_VARS.N8N_WEBHOOK_PASSWORD];
+// Mock environment variables
+const mockEnv = {
+  N8N_API_URL: "https://api.test.n8n.io",
+  N8N_API_KEY: "test-key-123",
+  N8N_API_TIMEOUT: "5000",
+  MCP_SERVER_TIMEOUT: "25000",
+  NODE_ENV: "test",
+  DEBUG: "true",
 };
 
-const saveEnvState = () => {
-  return { ...process.env };
-};
+// Mock process.env
+const originalEnv = process.env;
 
-const DUMMY_ENV_CONTENT = `
-${ENV_VARS.N8N_API_URL}=http://dummyapi.com
-${ENV_VARS.N8N_API_KEY}=dummyapikey
-${ENV_VARS.N8N_WEBHOOK_USERNAME}=dummyuser
-${ENV_VARS.N8N_WEBHOOK_PASSWORD}=dummypassword
-`;
+beforeEach(() => {
+  // Reset process.env
+  process.env = { ...originalEnv, ...mockEnv };
 
-describe('loadEnvironmentVariables', () => {
-  beforeEach(() => {
-    jest.resetModules(); // Reset module cache, critical for dotenv
-    process.env = { ...originalEnv }; // Restore original env
-    clearTestEnvVars(); // Clear our specific vars
+  // Clear module cache to ensure fresh environment handling
+  jest.resetModules();
+});
 
-    // Ensure dummy .env is clean before each test that might create it
-    if (dummyEnvPath && fs.existsSync(dummyEnvPath)) {
-      fs.unlinkSync(dummyEnvPath);
-    }
-  });
+afterEach(() => {
+  // Restore original process.env
+  process.env = originalEnv;
+});
 
-  afterEach(() => {
-    // Restore original env
-    process.env = { ...originalEnv };
-    // Clean up dummy .env file if it exists after a test
-    if (dummyEnvPath && fs.existsSync(dummyEnvPath)) {
-      try {
-        fs.unlinkSync(dummyEnvPath);
-      } catch (e) {
-        // In case the test itself deleted it, or it was never created.
-      }
-    }
-  });
+describe("Environment Configuration", () => {
+  describe("getEnvConfig", () => {
+    it("should return valid configuration with required variables", async () => {
+      const { getEnvConfig } = await import(
+        "../../../src/config/environment.js"
+      );
 
-  // Test Case 1: All environment variables set
-  test('should not change process.env if all required env vars are already set', () => {
-    process.env[ENV_VARS.N8N_API_URL] = 'http://existingapi.com';
-    process.env[ENV_VARS.N8N_API_KEY] = 'existingapikey';
-    process.env[ENV_VARS.N8N_WEBHOOK_USERNAME] = 'existinguser';
-    process.env[ENV_VARS.N8N_WEBHOOK_PASSWORD] = 'existingpassword';
+      const config = getEnvConfig();
 
-    const envStateBeforeLoad = saveEnvState();
-    loadEnvironmentVariables(); // Should not load .env because vars are present
-    
-    expect(process.env).toEqual(envStateBeforeLoad);
-  });
+      expect(config).toEqual({
+        n8nApiUrl: mockEnv.N8N_API_URL,
+        n8nApiKey: mockEnv.N8N_API_KEY,
+        n8nApiTimeout: 5000,
+        mcpServerTimeout: 25000,
+        nodeEnv: mockEnv.NODE_ENV,
+        debug: true,
+        n8nWebhookBaseUrl: undefined,
+        n8nWebhookUsername: undefined,
+        n8nWebhookPassword: undefined,
+        corsAllowedOrigins: undefined,
+        vercelUrl: undefined,
+        vercelEnv: undefined,
+        redisUrl: undefined,
+      });
+    });
 
-  // Test Case 2: No environment variables set, .env file exists
-  test('should load vars from .env file if no required env vars are set and .env exists', () => {
-    if (!projectRootDir || !dummyEnvPath) {
-      console.warn("Skipping test: Project root not found, cannot create dummy .env file.");
-      return; // or expect.hasAssertions() with a different path
-    }
-    
-    // Pre-condition: specific vars are not set (cleared in beforeEach)
-    expect(process.env[ENV_VARS.N8N_API_URL]).toBeUndefined();
+    it("should throw error with invalid URL", async () => {
+      process.env.N8N_API_URL = "invalid-url";
 
-    fs.writeFileSync(dummyEnvPath, DUMMY_ENV_CONTENT);
+      const { getEnvConfig } = await import(
+        "../../../src/config/environment.js"
+      );
 
-    // Temporarily point findConfig's "idea" of .env to our dummy .env by hijacking process.env for dotenv
-    // This is tricky because loadEnvironmentVariables uses findConfig to locate package.json, then path.resolve for .env
-    // The most straightforward way is to ensure findConfig returns our projectRootDir, and then dotenv loads our dummyEnvPath.
-    // The current implementation of loadEnvironmentVariables is:
-    //   const projectRoot = findConfig('package.json');
-    //   if (projectRoot) {
-    //     const envPath = path.resolve(path.dirname(projectRoot), '.env'); <--- This is the key
-    //     dotenv.config({ path: envPath });
-    //   }
-    // So, for this test, we need to make `path.resolve` point to `dummyEnvPath` OR make the actual `.env` the dummy.
-    // Let's rename the actual .env if it exists, place our dummy, then restore.
-    // A simpler approach for testing: the function loads ".env". So we make our dummy file THE ".env".
-    
-    const actualEnvPath = path.resolve(projectRootDir, '.env');
-    let actualEnvRenamedPath: string | null = null;
-    if (fs.existsSync(actualEnvPath)) {
-      actualEnvRenamedPath = actualEnvPath + '.backup';
-      fs.renameSync(actualEnvPath, actualEnvRenamedPath);
-    }
+      expect(() => getEnvConfig()).toThrow(
+        "Invalid URL format for N8N_API_URL: invalid-url"
+      );
+    });
 
-    fs.writeFileSync(actualEnvPath, DUMMY_ENV_CONTENT); // Write our dummy content to the actual .env path
+    it("should throw error for missing required environment variables", async () => {
+      delete process.env.N8N_API_URL;
 
-    try {
-      loadEnvironmentVariables();
+      const { getEnvConfig } = await import(
+        "../../../src/config/environment.js"
+      );
 
-      expect(process.env[ENV_VARS.N8N_API_URL]).toBe('http://dummyapi.com');
-      expect(process.env[ENV_VARS.N8N_API_KEY]).toBe('dummyapikey');
-      expect(process.env[ENV_VARS.N8N_WEBHOOK_USERNAME]).toBe('dummyuser');
-      expect(process.env[ENV_VARS.N8N_WEBHOOK_PASSWORD]).toBe('dummypassword');
-    } finally {
-      // Clean up: remove our dummy .env and restore original .env if it was renamed
-      if (fs.existsSync(actualEnvPath)) {
-        fs.unlinkSync(actualEnvPath);
-      }
-      if (actualEnvRenamedPath && fs.existsSync(actualEnvRenamedPath)) {
-        fs.renameSync(actualEnvRenamedPath, actualEnvPath);
-      }
-    }
-  });
+      expect(() => getEnvConfig()).toThrow(
+        "Missing required environment variable: N8N_API_URL"
+      );
+    });
 
-  // Test Case 3: No environment variables set, no .env file exists
-  test('should not change process.env if no required env vars are set and no .env file exists', () => {
-    if (!projectRootDir) {
-      console.warn("Skipping parts of test: Project root not found, .env file check might be unreliable.");
-      // We can still proceed as findConfig would return null or the .env file wouldn't be found
-    } else {
-      const actualEnvPath = path.resolve(projectRootDir, '.env');
-      if (fs.existsSync(actualEnvPath)) {
-        // This test requires no .env file, so if one exists (e.g. a real one for dev), this test is harder.
-        // For CI/isolated env, it should be fine. Here we assume it's okay if it doesn't exist.
-        // If it *does* exist, the test might reflect that it *was* loaded if not handled.
-        console.warn(`Warning: Test 'no .env file exists' running when an actual .env file is present at ${actualEnvPath}. This test assumes it won't be loaded or is empty.`);
-        // To be robust, we'd need to ensure it's not there, similar to Test Case 2's cleanup.
-        // For now, we assume `loadEnvironmentVariables` won't find one if `findConfig` fails or the file is empty/irrelevant.
-      }
-    }
-    
-    // Vars are cleared in beforeEach
-    const envStateBeforeLoad = saveEnvState();
-    loadEnvironmentVariables(); // Should not find a .env file to load (or findConfig returns null)
-    
-    expect(process.env[ENV_VARS.N8N_API_URL]).toBeUndefined();
-    expect(process.env[ENV_VARS.N8N_API_KEY]).toBeUndefined();
-    expect(process.env[ENV_VARS.N8N_WEBHOOK_USERNAME]).toBeUndefined();
-    expect(process.env[ENV_VARS.N8N_WEBHOOK_PASSWORD]).toBeUndefined();
-    // Check if other env vars were not disturbed (more robust check)
-    expect(process.env).toEqual(envStateBeforeLoad);
-  });
+    it("should throw error for invalid timeout values", async () => {
+      process.env.N8N_API_TIMEOUT = "invalid";
 
-  // Test Case 4: Some environment variables set
-  test('should not change process.env if some (but not all) required env vars are set', () => {
-    process.env[ENV_VARS.N8N_API_URL] = 'http://partialapi.com';
-    process.env[ENV_VARS.N8N_API_KEY] = 'partialapikey';
-    // N8N_WEBHOOK_USERNAME and N8N_WEBHOOK_PASSWORD are not set (cleared by beforeEach)
+      const { getEnvConfig } = await import(
+        "../../../src/config/environment.js"
+      );
 
-    const envStateBeforeLoad = saveEnvState();
-    loadEnvironmentVariables(); // Should not load .env because some vars are present
-    
-    expect(process.env).toEqual(envStateBeforeLoad);
-    expect(process.env[ENV_VARS.N8N_API_URL]).toBe('http://partialapi.com');
-    expect(process.env[ENV_VARS.N8N_API_KEY]).toBe('partialapikey');
-    expect(process.env[ENV_VARS.N8N_WEBHOOK_USERNAME]).toBeUndefined();
-    expect(process.env[ENV_VARS.N8N_WEBHOOK_PASSWORD]).toBeUndefined();
+      expect(() => getEnvConfig()).toThrow(
+        "Invalid timeout for N8N_API_TIMEOUT: must be a positive number, got NaN"
+      );
+    });
+
+    it("should use default timeout values when not provided", async () => {
+      delete process.env.N8N_API_TIMEOUT;
+      delete process.env.MCP_SERVER_TIMEOUT;
+
+      const { getEnvConfig } = await import(
+        "../../../src/config/environment.js"
+      );
+
+      const config = getEnvConfig();
+
+      expect(config.n8nApiTimeout).toBe(10000); // Default API timeout
+      expect(config.mcpServerTimeout).toBe(30000); // Default server timeout
+    });
+
+    it("should throw error for zero timeout values", async () => {
+      process.env.N8N_API_TIMEOUT = "0";
+
+      const { getEnvConfig } = await import(
+        "../../../src/config/environment.js"
+      );
+
+      expect(() => getEnvConfig()).toThrow(
+        "Invalid timeout for N8N_API_TIMEOUT: must be a positive number, got 0"
+      );
+    });
   });
 });

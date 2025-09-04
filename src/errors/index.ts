@@ -1,17 +1,19 @@
 /**
  * Error Handling Module
- * 
+ *
  * This module provides custom error classes and error handling utilities
  * for the n8n MCP Server.
+ *
+ * @format
  */
 
-import { McpError as SdkMcpError } from '@modelcontextprotocol/sdk/types.js';
-import { ErrorCode } from './error-codes.js';
+import { McpError as SdkMcpError } from "@modelcontextprotocol/sdk/types.js";
+import { ErrorCode } from "./error-codes.js";
 
 // Re-export McpError from SDK
-export { McpError } from '@modelcontextprotocol/sdk/types.js';
+export { McpError } from "@modelcontextprotocol/sdk/types.js";
 // Re-export ErrorCode enum
-export { ErrorCode } from './error-codes.js';
+export { ErrorCode } from "./error-codes.js";
 
 /**
  * n8n API Error class for handling errors from the n8n API
@@ -20,7 +22,7 @@ export class N8nApiError extends SdkMcpError {
   constructor(message: string, statusCode?: number, details?: unknown) {
     // Map HTTP status codes to appropriate MCP error codes
     let errorCode = ErrorCode.InternalError;
-    
+
     if (statusCode) {
       if (statusCode === 401 || statusCode === 403) {
         errorCode = ErrorCode.AuthenticationError;
@@ -30,7 +32,7 @@ export class N8nApiError extends SdkMcpError {
         errorCode = ErrorCode.InvalidRequest;
       }
     }
-    
+
     super(errorCode, formatErrorMessage(message, statusCode, details));
   }
 }
@@ -38,30 +40,35 @@ export class N8nApiError extends SdkMcpError {
 /**
  * Format an error message with status code and details
  */
-function formatErrorMessage(message: string, statusCode?: number, details?: unknown): string {
+function formatErrorMessage(
+  message: string,
+  statusCode?: number,
+  details?: unknown
+): string {
   let formattedMessage = message;
-  
+
   if (statusCode) {
     formattedMessage += ` (Status: ${statusCode})`;
   }
-  
+
   if (details) {
     try {
-      const detailsStr = typeof details === 'string' 
-        ? details 
-        : JSON.stringify(details, null, 2);
+      const detailsStr =
+        typeof details === "string"
+          ? details
+          : JSON.stringify(details, null, 2);
       formattedMessage += `\nDetails: ${detailsStr}`;
     } catch (error) {
       // Ignore JSON stringification errors
     }
   }
-  
+
   return formattedMessage;
 }
 
 /**
  * Safely parse JSON response from n8n API
- * 
+ *
  * @param text Text to parse as JSON
  * @returns Parsed JSON object or null if parsing fails
  */
@@ -75,41 +82,53 @@ export function safeJsonParse(text: string): any {
 
 /**
  * Handle axios errors and convert them to N8nApiError
- * 
+ *
  * @param error Error object from axios
  * @param defaultMessage Default error message
  * @returns N8nApiError with appropriate details
  */
-export function handleAxiosError(error: any, defaultMessage = 'n8n API request failed'): N8nApiError {
+export function handleAxiosError(
+  error: any,
+  defaultMessage = "n8n API request failed"
+): N8nApiError {
+  // Handle axios timeout errors specifically
+  if (error.code === "ECONNABORTED" && error.message?.includes("timeout")) {
+    return new N8nApiError(
+      `Request timeout: ${defaultMessage}`,
+      408, // Request Timeout HTTP status
+      { timeout: true, code: error.code }
+    );
+  }
+
   // Handle axios error responses
   if (error.response) {
     const statusCode = error.response.status;
     const responseData = error.response.data;
-    
+
     let errorMessage = defaultMessage;
     if (responseData && responseData.message) {
       errorMessage = responseData.message;
     }
-    
+
     return new N8nApiError(errorMessage, statusCode, responseData);
   }
-  
-  // Handle request errors (e.g., network issues)
+
+  // Handle request errors (e.g., network issues, connection refused)
   if (error.request) {
     return new N8nApiError(
-      'Network error connecting to n8n API', 
-      undefined, 
-      error.message
+      "Network error connecting to n8n API",
+      undefined,
+      error.message || { code: error.code }
     );
   }
-  
+
   // Handle other errors
   return new N8nApiError(error.message || defaultMessage);
 }
 
 /**
  * Extract a readable error message from an error object
- * 
+ *
  * @param error Error object
  * @returns Readable error message
  */
@@ -117,14 +136,14 @@ export function getErrorMessage(error: unknown): string {
   if (error instanceof Error) {
     return error.message;
   }
-  
-  if (typeof error === 'string') {
+
+  if (typeof error === "string") {
     return error;
   }
-  
+
   try {
     return JSON.stringify(error);
   } catch {
-    return 'Unknown error';
+    return "Unknown error";
   }
 }

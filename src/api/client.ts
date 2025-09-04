@@ -30,7 +30,7 @@ export class N8nApiClient {
         "X-N8N-API-KEY": config.n8nApiKey,
         Accept: "application/json",
       },
-      timeout: 10000, // 10 seconds
+      timeout: config.n8nApiTimeout, // Use configured timeout
     });
 
     // Add request debugging if debug mode is enabled

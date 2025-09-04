@@ -61,3 +61,4 @@ build/
 *.embedding
 embeddings/
 mcp-config.json
+.vercel

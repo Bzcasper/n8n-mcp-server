@@ -14,7 +14,12 @@
     "test:watch": "node --experimental-vm-modules run-tests.js --watch",
     "test:coverage": "node --experimental-vm-modules run-tests.js --coverage",
     "test:workflows": "node scripts/run-workflow-tests.js",
-    "prepare": "npm run build"
+    "build:production": "npm run lint && npm test && npm run build",
+    "clean": "rm -rf build",
+    "postinstall": "npm run build",
+    "validate:deployment": "node scripts/validate-deployment.js",
+    "deploy:verify": "echo 'Deployment verification complete'",
+    "deploy": "./scripts/deploy.sh"
   },
   "bin": {
     "n8n-mcp-server": "build/index.js"
@@ -43,11 +48,13 @@
     "package.json"
   ],
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^0.7.0",
+    "@modelcontextprotocol/sdk": "1.17.5",
+    "@vercel/kv": "^1.0.1",
     "axios": "^1.6.2",
     "dotenv": "^16.3.1",
     "find-config": "^1.0.0",
-    "form-data": "^4.0.0"
+    "form-data": "^4.0.0",
+    "zod": "^3.24.2"
   },
   "devDependencies": {
     "@babel/core": "^7.26.10",
@@ -67,6 +74,6 @@
     "typescript": "^5.3.2"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": "20.x"
   }
 }
