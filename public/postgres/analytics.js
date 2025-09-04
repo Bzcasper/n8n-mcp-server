@@ -25,7 +25,7 @@ export async function getWorkflowPerformanceSummary(limit = 50, offset = 0) {
       AVG(e.memory_usage) as avg_memory_usage,
       ROUND(
         (COUNT(CASE WHEN e.status = 'success' THEN 1 END)::decimal /
-         NULLIF(COUNT(e.id), 0)) * 100, 2
+          NULLIF(COUNT(e.id), 0)) * 100, 2
       ) as success_rate,
       w.last_executed_at as last_executed
     FROM mcp_workflows w
@@ -36,8 +36,7 @@ export async function getWorkflowPerformanceSummary(limit = 50, offset = 0) {
     ORDER BY total_executions DESC
     LIMIT ${limit} OFFSET ${offset}
   `;
-    const rows = result.rows || result;
-    return rows.map((row) => ({
+    return result.rows.map((row) => ({
         workflowId: row.workflow_id,
         name: row.name,
         totalExecutions: Number(row.total_executions) || 0,
@@ -103,7 +102,7 @@ export async function getExecutionTrends(days = 30, groupBy = "day") {
     FROM trend_calc
     ORDER BY period DESC
   `;
-    return result.map((row) => ({
+    return result.rows.map((row) => ({
         period: row.period,
         executions: Number(row.executions) || 0,
         successes: Number(row.successes) || 0,
@@ -139,7 +138,7 @@ export async function getUserActivitySummary(days = 30, limit = 100) {
     ORDER BY total_executions DESC, last_activity DESC
     LIMIT ${limit}
   `;
-    return result.map((row) => ({
+    return result.rows.map((row) => ({
         userId: row.user_id,
         username: row.username,
         displayName: row.display_name,
@@ -209,7 +208,7 @@ export async function getPerformanceMetricsByType(days = 7) {
     ) pm ON tc.metric_type = pm.metric_type AND tc.workflow_id = pm.workflow_id
     ORDER BY tc.metric_type, tc.current_avg DESC
   `;
-    return result.map((row) => ({
+    return result.rows.map((row) => ({
         metricType: row.metric_type,
         workflowId: row.workflow_id,
         workflowName: row.workflow_name,
@@ -262,7 +261,7 @@ export async function getErrorAnalysis(days = 7, limit = 50) {
     ORDER BY impact_score_hours DESC
     LIMIT ${limit}
   `;
-    return result.map((row) => ({
+    return result.rows.map((row) => ({
         workflowId: row.workflow_id,
         workflowName: row.workflow_name,
         errorCount: Number(row.error_count) || 0,
@@ -315,7 +314,7 @@ export async function getSystemHealthOverview() {
     ORDER BY e.finished_at DESC
     LIMIT 10;
   `;
-    const recentErrors = errorStats.map((row) => ({
+    const recentErrors = errorStats.rows.map((row) => ({
         workflowName: row.workflow_name,
         errorMessage: row.error_message || "Unknown error",
         timestamp: row.timestamp

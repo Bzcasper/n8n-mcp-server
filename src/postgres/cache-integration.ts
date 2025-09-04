@@ -329,14 +329,14 @@ export class ExecutionDataAccess {
       // @ts-ignore - Execution lookup
       const result = await sql`SELECT * FROM mcp_executions WHERE id = ${id}`;
 
-      if (result.length === 0) {
+      if (result.rows.length === 0) {
         throw new McpError(
-          ErrorCode.InvalidParams,
+          ErrorCode.InvalidRequest,
           `Execution ${id} not found`
         );
       }
 
-      return result[0];
+      return result.rows[0];
     });
   }
 
@@ -427,11 +427,14 @@ export class UserDataAccess {
         FROM mcp_users WHERE user_id = ${userId}
       `;
 
-      if (result.length === 0) {
-        throw new McpError(ErrorCode.InvalidParams, `User ${userId} not found`);
+      if (result.rows.length === 0) {
+        throw new McpError(
+          ErrorCode.InvalidRequest,
+          `User ${userId} not found`
+        );
       }
 
-      return result[0];
+      return result.rows[0];
     });
   }
 
@@ -447,14 +450,14 @@ export class UserDataAccess {
           AND (s.expires_at IS NULL OR s.expires_at > NOW())
       `;
 
-      if (result.length === 0) {
+      if (result.rows.length === 0) {
         throw new McpError(
-          ErrorCode.InvalidParams,
+          ErrorCode.InvalidRequest,
           "Invalid or expired session"
         );
       }
 
-      return result[0];
+      return result.rows[0];
     });
   }
 }

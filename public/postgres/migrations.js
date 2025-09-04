@@ -5,7 +5,7 @@
  *
  * @format
  */
-import { query } from "./client.js";
+import { sql } from "@vercel/postgres";
 import { McpError } from "@modelcontextprotocol/sdk/types.js";
 import { ErrorCode } from "../errors/error-codes.js";
 /**
@@ -347,15 +347,17 @@ const migrations = [
  */
 export async function getCurrentSchemaVersion() {
     try {
-        const result = await query `SELECT MAX(version) as version FROM schema_versions`;
-        return result[0]?.version || 0;
+        const result = await sql `SELECT MAX(version) as version FROM schema_versions`;
+        return result.rows[0]?.version || 0;
     }
     catch (error) {
         // If schema_versions table doesn't exist, assume version 0
-        if (error.message?.includes('relation "schema_versions" does not exist')) {
+        if (error instanceof Error &&
+            error.message?.includes('relation "schema_versions" does not exist')) {
             return 0;
         }
-        throw new McpError(ErrorCode.InternalError, `Failed to get schema version: ${error.message}`);
+        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        throw new McpError(ErrorCode.InternalError, `Failed to get schema version: ${errorMessage}`);
     }
 }
 /**
@@ -376,7 +378,8 @@ export async function runMigrations() {
                     // as it doesn't support complex multi-statement queries
                     for (const sqlQuery of queries) {
                         if (sqlQuery.trim()) {
-                            await query([sqlQuery]);
+                            // @ts-expect-error - Dynamic SQL execution for migrations
+                            await sql `${[sqlQuery]}`;
                         }
                     }
                 }
@@ -390,7 +393,8 @@ export async function runMigrations() {
                     migration.down(rollbackQueries);
                     for (const sqlQuery of rollbackQueries) {
                         if (sqlQuery.trim()) {
-                            await query([sqlQuery]);
+                            // @ts-expect-error - Dynamic SQL execution for migrations
+                            await sql `${[sqlQuery]}`;
                         }
                     }
                     console.log(`Migration ${migration.version} rolled back successfully`);
@@ -398,7 +402,7 @@ export async function runMigrations() {
                 catch (rollbackError) {
                     console.error(`Migration ${migration.version} rollback failed:`, rollbackError);
                 }
-                throw new McpError(ErrorCode.InternalError, `Migration ${migration.version} failed and could not be rolled back: ${error.message}`);
+                throw new McpError(ErrorCode.InternalError, `Migration ${migration.version} failed and could not be rolled back: ${error instanceof Error ? error.message : "Unknown error"}`);
             }
         }
     }
@@ -425,14 +429,15 @@ export async function rollbackToVersion(targetVersion) {
             migration.down(queries);
             for (const sqlQuery of queries) {
                 if (sqlQuery.trim()) {
-                    await query([sqlQuery]);
+                    // @ts-expect-error - Dynamic SQL execution for migrations
+                    await sql `${[sqlQuery]}`;
                 }
             }
             console.log(`Migration ${migration.version} rolled back successfully`);
         }
         catch (error) {
             console.error(`Migration ${migration.version} rollback failed:`, error);
-            throw new McpError(ErrorCode.InternalError, `Migration ${migration.version} rollback failed: ${error.message}`);
+            throw new McpError(ErrorCode.InternalError, `Migration ${migration.version} rollback failed: ${error instanceof Error ? error.message : "Unknown error"}`);
         }
     }
     console.log(`Rolled back to schema version ${targetVersion}`);
@@ -455,13 +460,12 @@ export async function getMigrationStatus() {
  * Force set schema version (dangerous - use with care)
  */
 export async function forceSetSchemaVersion(version) {
-    await query([
-        `INSERT INTO schema_versions (version, description, applied_at)
-     VALUES ($1, 'Forced version update', NOW())
-     ON CONFLICT (version) DO UPDATE SET
-       applied_at = NOW(),
-       description = 'Forced version update'`,
-    ], [version]);
+    await sql `
+    INSERT INTO schema_versions (version, description, applied_at)
+    VALUES (${version}, 'Forced version update', NOW())
+    ON CONFLICT (version) DO UPDATE SET
+      applied_at = NOW(),
+      description = 'Forced version update'`;
     console.log(`Schema version forcibly set to ${version}`);
 }
 //# sourceMappingURL=migrations.js.map

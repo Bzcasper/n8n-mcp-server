@@ -260,10 +260,10 @@ export class ExecutionDataAccess {
         return this.cache.get(`execution:${id}`, async () => {
             // @ts-ignore - Execution lookup
             const result = await sql `SELECT * FROM mcp_executions WHERE id = ${id}`;
-            if (result.length === 0) {
-                throw new McpError(ErrorCode.InvalidParams, `Execution ${id} not found`);
+            if (result.rows.length === 0) {
+                throw new McpError(ErrorCode.InvalidRequest, `Execution ${id} not found`);
             }
-            return result[0];
+            return result.rows[0];
         });
     }
     async getExecutions(workflowId, limit = 50) {
@@ -342,10 +342,10 @@ export class UserDataAccess {
         SELECT user_id, email, username, display_name, role, is_active, created_at, last_login
         FROM mcp_users WHERE user_id = ${userId}
       `;
-            if (result.length === 0) {
-                throw new McpError(ErrorCode.InvalidParams, `User ${userId} not found`);
+            if (result.rows.length === 0) {
+                throw new McpError(ErrorCode.InvalidRequest, `User ${userId} not found`);
             }
-            return result[0];
+            return result.rows[0];
         });
     }
     async validateSession(sessionId) {
@@ -359,10 +359,10 @@ export class UserDataAccess {
           AND s.is_active = true
           AND (s.expires_at IS NULL OR s.expires_at > NOW())
       `;
-            if (result.length === 0) {
-                throw new McpError(ErrorCode.InvalidParams, "Invalid or expired session");
+            if (result.rows.length === 0) {
+                throw new McpError(ErrorCode.InvalidRequest, "Invalid or expired session");
             }
-            return result[0];
+            return result.rows[0];
         });
     }
 }

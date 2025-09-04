@@ -38,9 +38,9 @@ export async function getUserById(userId) {
     const result = await sql `
     SELECT * FROM mcp_users WHERE user_id = ${userId}
   `;
-    if (result.length === 0)
+    if (result.rows.length === 0)
         return null;
-    const row = result[0];
+    const row = result.rows[0];
     return {
         userId: row.user_id,
         email: row.email,
@@ -68,9 +68,9 @@ export async function getUserByCredentials(identifier) {
     SELECT * FROM mcp_users
     WHERE (email = ${identifier} OR username = ${identifier}) AND is_active = true
   `;
-    if (result.length === 0)
+    if (result.rows.length === 0)
         return null;
-    const row = result[0];
+    const row = result.rows[0];
     return {
         userId: row.user_id,
         email: row.email,
@@ -209,7 +209,7 @@ export async function createSession(userId, options = {}) {
       ${options.ipAddress || null},
       ${options.location ? JSON.stringify(options.location) : null},
       ${options.tokenHash || null},
-      ${options.expiresAt || null}
+      ${options.expiresAt ? new Date(options.expiresAt).toISOString() : null}
     )
   `;
     return sessionId;
@@ -224,9 +224,9 @@ export async function getActiveSession(sessionId) {
     WHERE session_id = ${sessionId} AND is_active = true
       AND (expires_at IS NULL OR expires_at > NOW())
   `;
-    if (result.length === 0)
+    if (result.rows.length === 0)
         return null;
-    const row = result[0];
+    const row = result.rows[0];
     return {
         sessionId: row.session_id,
         userId: row.user_id,
@@ -285,7 +285,7 @@ export async function getUserActiveSessions(userId) {
       AND (expires_at IS NULL OR expires_at > NOW())
     ORDER BY started_at DESC
   `;
-    return result.map((row) => ({
+    return result.rows.map((row) => ({
         sessionId: row.session_id,
         userId: row.user_id,
         startedAt: row.started_at.toISOString(),
@@ -311,9 +311,9 @@ export async function authenticateUser(identifier, passwordHash) {
     WHERE (email = ${identifier} OR username = ${identifier})
       AND is_active = true
   `;
-    if (result.length === 0 || !result[0].password_valid)
+    if (result.rows.length === 0 || !result.rows[0].password_valid)
         return null;
-    const row = result[0];
+    const row = result.rows[0];
     // Record successful login
     await recordLogin(row.user_id);
     return {
@@ -342,8 +342,8 @@ export async function checkUserPermission(userId, requiredRole) {
     if (!user || !user.isActive)
         return false;
     const roleHierarchy = { viewer: 1, user: 2, admin: 3 };
-    const userLevel = roleHierarchy[user.role];
-    const requiredLevel = roleHierarchy[requiredRole];
+    const userLevel = roleHierarchy[user.role] ?? 0;
+    const requiredLevel = roleHierarchy[requiredRole] ?? 0;
     return userLevel >= requiredLevel;
 }
 /**
@@ -383,7 +383,7 @@ export async function getUserAnalytics(userId, days = 30) {
       e.unique_workflows_used
     FROM session_stats s, execution_stats e, workflow_stats w
   `;
-    if (result.length === 0) {
+    if (result.rows.length === 0) {
         return {
             totalSessions: 0,
             totalExecutions: 0,
@@ -393,7 +393,7 @@ export async function getUserAnalytics(userId, days = 30) {
             uniqueWorkflowsUsed: 0,
         };
     }
-    const row = result[0];
+    const row = result.rows[0];
     return {
         totalSessions: Number(row.total_sessions) || 0,
         totalExecutions: Number(row.total_executions) || 0,
@@ -409,7 +409,7 @@ export async function getUserAnalytics(userId, days = 30) {
 export async function exportUserData(userId) {
     const user = await getUserById(userId);
     if (!user) {
-        throw new McpError(ErrorCode.InvalidParams, "User not found");
+        throw new McpError(ErrorCode.InvalidRequest, "User not found");
     }
     const sessions = await getUserActiveSessions(userId);
     // @ts-ignore - User executions export query
@@ -420,7 +420,7 @@ export async function exportUserData(userId) {
     ORDER BY started_at DESC
     LIMIT 1000
   `;
-    const executions = executionsResult.map((row) => ({
+    const executions = executionsResult.rows.map((row) => ({
         id: row.id,
         status: row.status,
         timestamp: row.timestamp.toISOString(),

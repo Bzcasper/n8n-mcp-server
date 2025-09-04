@@ -86,9 +86,9 @@ export async function getUserById(userId: string): Promise<MCPUser | null> {
     SELECT * FROM mcp_users WHERE user_id = ${userId}
   `;
 
-  if (result.length === 0) return null;
+  if (result.rows.length === 0) return null;
 
-  const row = result[0];
+  const row = result.rows[0];
   return {
     userId: row.user_id,
     email: row.email,
@@ -120,9 +120,9 @@ export async function getUserByCredentials(
     WHERE (email = ${identifier} OR username = ${identifier}) AND is_active = true
   `;
 
-  if (result.length === 0) return null;
+  if (result.rows.length === 0) return null;
 
-  const row = result[0];
+  const row = result.rows[0];
   return {
     userId: row.user_id,
     email: row.email,
@@ -150,7 +150,7 @@ export async function updateUser(
   updates: Partial<MCPUser>
 ): Promise<void> {
   const setStatements = [];
-  const values = [];
+  const values: (string | number | boolean | null | Date)[] = [];
 
   if (updates.email !== undefined) {
     setStatements.push("email = ?");
@@ -298,7 +298,7 @@ export async function createSession(
       ${options.ipAddress || null},
       ${options.location ? JSON.stringify(options.location) : null},
       ${options.tokenHash || null},
-      ${options.expiresAt || null}
+      ${options.expiresAt ? new Date(options.expiresAt).toISOString() : null}
     )
   `;
 
@@ -318,9 +318,9 @@ export async function getActiveSession(
       AND (expires_at IS NULL OR expires_at > NOW())
   `;
 
-  if (result.length === 0) return null;
+  if (result.rows.length === 0) return null;
 
-  const row = result[0];
+  const row = result.rows[0];
   return {
     sessionId: row.session_id,
     userId: row.user_id,
@@ -387,7 +387,7 @@ export async function getUserActiveSessions(
     ORDER BY started_at DESC
   `;
 
-  return result.map((row) => ({
+  return result.rows.map((row) => ({
     sessionId: row.session_id,
     userId: row.user_id,
     startedAt: row.started_at.toISOString(),
@@ -418,9 +418,9 @@ export async function authenticateUser(
       AND is_active = true
   `;
 
-  if (result.length === 0 || !result[0].password_valid) return null;
+  if (result.rows.length === 0 || !result.rows[0].password_valid) return null;
 
-  const row = result[0];
+  const row = result.rows[0];
 
   // Record successful login
   await recordLogin(row.user_id);
@@ -454,9 +454,10 @@ export async function checkUserPermission(
   const user = await getUserById(userId);
   if (!user || !user.isActive) return false;
 
-  const roleHierarchy = { viewer: 1, user: 2, admin: 3 };
-  const userLevel = roleHierarchy[user.role];
-  const requiredLevel = roleHierarchy[requiredRole];
+  const roleHierarchy = { viewer: 1, user: 2, admin: 3 } as const;
+  const userLevel = roleHierarchy[user.role as keyof typeof roleHierarchy] ?? 0;
+  const requiredLevel =
+    roleHierarchy[requiredRole as keyof typeof roleHierarchy] ?? 0;
 
   return userLevel >= requiredLevel;
 }
@@ -509,7 +510,7 @@ export async function getUserAnalytics(
     FROM session_stats s, execution_stats e, workflow_stats w
   `;
 
-  if (result.length === 0) {
+  if (result.rows.length === 0) {
     return {
       totalSessions: 0,
       totalExecutions: 0,
@@ -520,7 +521,7 @@ export async function getUserAnalytics(
     };
   }
 
-  const row = result[0];
+  const row = result.rows[0];
   return {
     totalSessions: Number(row.total_sessions) || 0,
     totalExecutions: Number(row.total_executions) || 0,
@@ -542,7 +543,7 @@ export async function exportUserData(userId: string): Promise<{
 }> {
   const user = await getUserById(userId);
   if (!user) {
-    throw new McpError(ErrorCode.InvalidParams, "User not found");
+    throw new McpError(ErrorCode.InvalidRequest, "User not found");
   }
 
   const sessions = await getUserActiveSessions(userId);
@@ -556,7 +557,7 @@ export async function exportUserData(userId: string): Promise<{
     LIMIT 1000
   `;
 
-  const executions = executionsResult.map((row) => ({
+  const executions = executionsResult.rows.map((row) => ({
     id: row.id,
     status: row.status,
     timestamp: row.timestamp.toISOString(),

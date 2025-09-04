@@ -28,6 +28,11 @@ export declare const ENV_VARS: {
     SUPABASE_URL: string;
     SUPABASE_ANON_KEY: string;
     SUPABASE_SERVICE_ROLE_KEY: string;
+    SUPABASE_JWT_SECRET: string;
+    POSTGRES_PRISMA_URL: string;
+    POSTGRES_URL_NON_POOLING: string;
+    NEXT_PUBLIC_SUPABASE_URL: string;
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: string;
     DISABLE_ANALYTICS: string;
     DATABASE_TIMEOUT: string;
     DATABASE_MAX_CONNECTIONS: string;
@@ -54,6 +59,11 @@ export interface EnvConfig {
     supabaseUrl?: string;
     supabaseAnonKey?: string;
     supabaseServiceRoleKey?: string;
+    supabaseJwtSecret?: string;
+    postgresPrismaUrl?: string;
+    postgresUrlNonPooling?: string;
+    nextPublicSupabaseUrl?: string;
+    nextPublicSupabaseAnonKey?: string;
     databaseTimeout: number;
     databaseMaxConnections: number;
 }

@@ -34,6 +34,11 @@ export const ENV_VARS = {
     SUPABASE_URL: "SUPABASE_URL",
     SUPABASE_ANON_KEY: "SUPABASE_ANON_KEY",
     SUPABASE_SERVICE_ROLE_KEY: "SUPABASE_SERVICE_ROLE_KEY",
+    SUPABASE_JWT_SECRET: "SUPABASE_JWT_SECRET",
+    POSTGRES_PRISMA_URL: "POSTGRES_PRISMA_URL",
+    POSTGRES_URL_NON_POOLING: "POSTGRES_URL_NON_POOLING",
+    NEXT_PUBLIC_SUPABASE_URL: "NEXT_PUBLIC_SUPABASE_URL",
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: "NEXT_PUBLIC_SUPABASE_ANON_KEY",
     DISABLE_ANALYTICS: "DISABLE_ANALYTICS",
     DATABASE_TIMEOUT: "DATABASE_TIMEOUT",
     DATABASE_MAX_CONNECTIONS: "DATABASE_MAX_CONNECTIONS",
@@ -83,6 +88,11 @@ export function getEnvConfig() {
     const supabaseUrl = process.env[ENV_VARS.SUPABASE_URL];
     const supabaseAnonKey = process.env[ENV_VARS.SUPABASE_ANON_KEY];
     const supabaseServiceRoleKey = process.env[ENV_VARS.SUPABASE_SERVICE_ROLE_KEY];
+    const supabaseJwtSecret = process.env[ENV_VARS.SUPABASE_JWT_SECRET];
+    const postgresPrismaUrl = process.env[ENV_VARS.POSTGRES_PRISMA_URL];
+    const postgresUrlNonPooling = process.env[ENV_VARS.POSTGRES_URL_NON_POOLING];
+    const nextPublicSupabaseUrl = process.env[ENV_VARS.NEXT_PUBLIC_SUPABASE_URL];
+    const nextPublicSupabaseAnonKey = process.env[ENV_VARS.NEXT_PUBLIC_SUPABASE_ANON_KEY];
     const databaseTimeout = parseInt(process.env[ENV_VARS.DATABASE_TIMEOUT] || "10000", 10);
     const databaseMaxConnections = parseInt(process.env[ENV_VARS.DATABASE_MAX_CONNECTIONS] || "5", 10);
     // Validate required core environment variables
@@ -203,6 +213,11 @@ export function getEnvConfig() {
         supabaseUrl: supabaseUrl || undefined,
         supabaseAnonKey: supabaseAnonKey || undefined,
         supabaseServiceRoleKey: supabaseServiceRoleKey || undefined,
+        supabaseJwtSecret: supabaseJwtSecret || undefined,
+        postgresPrismaUrl: postgresPrismaUrl || undefined,
+        postgresUrlNonPooling: postgresUrlNonPooling || undefined,
+        nextPublicSupabaseUrl: nextPublicSupabaseUrl || undefined,
+        nextPublicSupabaseAnonKey: nextPublicSupabaseAnonKey || undefined,
         databaseTimeout,
         databaseMaxConnections,
     };
