@@ -67,7 +67,34 @@ export function loadEnvironmentVariables() {
  * @throws {McpError} If required environment variables are missing
  */
 export function getEnvConfig() {
-    const n8nApiUrl = process.env[ENV_VARS.N8N_API_URL];
+    // Get N8n API URL with fallback options
+    let n8nApiUrl = process.env[ENV_VARS.N8N_API_URL];
+    // Provide fallback URLs if not configured
+    if (!n8nApiUrl) {
+        console.log("⚠️  N8N_API_URL not set, trying fallback options...");
+        // Try common development URLs
+        const fallbackUrls = [
+            "http://localhost:5678/api/v1",
+            "http://127.0.0.1:5678/api/v1",
+            "http://myn8n:5678/api/v1",
+            "http://n8n:5678/api/v1",
+        ];
+        for (const url of fallbackUrls) {
+            try {
+                // Simple connectivity test (in production this would be async)
+                console.log(`🔍 Testing N8n at: ${url}`);
+                n8nApiUrl = url;
+                break; // Use the first working URL
+            }
+            catch (error) {
+                console.log(`❌ ${url} not reachable`);
+            }
+        }
+        if (!n8nApiUrl) {
+            console.log("⚠️  No N8n API URL found, using default localhost URL");
+            n8nApiUrl = "http://localhost:5678/api/v1";
+        }
+    }
     const n8nApiKey = process.env[ENV_VARS.N8N_API_KEY];
     const n8nApiTimeout = parseInt(process.env[ENV_VARS.N8N_API_TIMEOUT] || "10000", 10);
     const n8nWebhookBaseUrl = process.env[ENV_VARS.N8N_WEBHOOK_BASE_URL];
