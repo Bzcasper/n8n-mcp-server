@@ -6,6 +6,16 @@
  *
  * @format
  */
+declare module "@vercel/kv" {
+    interface Kv {
+        ping(): Promise<string>;
+        get(key: string): Promise<string | null>;
+        set(key: string, value: string, options?: {
+            ex?: number;
+        }): Promise<string>;
+        del(key: string): Promise<number>;
+    }
+}
 /**
  * Get KV client instance
  * Returns the global kv instance if available
@@ -22,6 +32,7 @@ export declare class VercelKVCache {
     private namespace;
     private client;
     constructor(namespace?: string);
+    private get typedClient();
     init(): Promise<this>;
     get(key: string): Promise<string | null>;
     set(key: string, value: string, ttl?: number): Promise<boolean>;

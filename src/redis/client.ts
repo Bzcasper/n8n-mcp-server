@@ -9,6 +9,16 @@
 
 import kv from "@vercel/kv";
 
+// Extended type declarations for Vercel KV
+declare module "@vercel/kv" {
+  interface Kv {
+    ping(): Promise<string>;
+    get(key: string): Promise<string | null>;
+    set(key: string, value: string, options?: { ex?: number }): Promise<string>;
+    del(key: string): Promise<number>;
+  }
+}
+
 /**
  * Get KV client instance
  * Returns the global kv instance if available
@@ -21,7 +31,7 @@ export async function getKVClient() {
 
   try {
     // Test if KV is working
-    await kv.ping();
+    await (kv as any).ping();
     console.log("Vercel KV client is available");
     return kv;
   } catch (error) {
@@ -47,6 +57,10 @@ export class VercelKVCache {
     this.client = null;
   }
 
+  private get typedClient() {
+    return this.client as any; // TypeScript workaround for KV methods
+  }
+
   async init() {
     this.client = await getKVClient();
     return this;
@@ -56,7 +70,7 @@ export class VercelKVCache {
     if (!this.client) return null;
     try {
       const fullKey = this.namespace ? `${this.namespace}:${key}` : key;
-      return await this.client.get(fullKey);
+      return await this.typedClient.get(fullKey);
     } catch (error) {
       console.error("KV GET error:", error);
       return null;
@@ -68,9 +82,9 @@ export class VercelKVCache {
     try {
       const fullKey = this.namespace ? `${this.namespace}:${key}` : key;
       if (ttl) {
-        await this.client.set(fullKey, value, { ex: ttl });
+        await this.typedClient.set(fullKey, value, { ex: ttl });
       } else {
-        await this.client.set(fullKey, value);
+        await this.typedClient.set(fullKey, value);
       }
       return true;
     } catch (error) {
@@ -84,9 +98,9 @@ export class VercelKVCache {
     try {
       const fullKey = this.namespace ? `${this.namespace}:${key}` : key;
       if (ttl) {
-        await this.client.set(fullKey, JSON.stringify(value), { ex: ttl });
+        await this.typedClient.set(fullKey, JSON.stringify(value), { ex: ttl });
       } else {
-        await this.client.set(fullKey, JSON.stringify(value));
+        await this.typedClient.set(fullKey, JSON.stringify(value));
       }
       return true;
     } catch (error) {
@@ -99,7 +113,7 @@ export class VercelKVCache {
     if (!this.client) return null;
     try {
       const fullKey = this.namespace ? `${this.namespace}:${key}` : key;
-      const value = await this.client.get(fullKey);
+      const value = await this.typedClient.get(fullKey);
       if (value && typeof value === "string") {
         return JSON.parse(value) as T;
       }
@@ -114,7 +128,7 @@ export class VercelKVCache {
     if (!this.client) return false;
     try {
       const fullKey = this.namespace ? `${this.namespace}:${key}` : key;
-      await this.client.del(fullKey);
+      await this.typedClient.del(fullKey);
       return true;
     } catch (error) {
       console.error("KV DEL error:", error);

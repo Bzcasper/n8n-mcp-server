@@ -42,6 +42,9 @@ export class VercelKVCache {
         this.namespace = namespace;
         this.client = null;
     }
+    get typedClient() {
+        return this.client; // TypeScript workaround for KV methods
+    }
     async init() {
         this.client = await getKVClient();
         return this;
@@ -51,7 +54,7 @@ export class VercelKVCache {
             return null;
         try {
             const fullKey = this.namespace ? `${this.namespace}:${key}` : key;
-            return await this.client.get(fullKey);
+            return await this.typedClient.get(fullKey);
         }
         catch (error) {
             console.error("KV GET error:", error);
@@ -64,10 +67,10 @@ export class VercelKVCache {
         try {
             const fullKey = this.namespace ? `${this.namespace}:${key}` : key;
             if (ttl) {
-                await this.client.set(fullKey, value, { ex: ttl });
+                await this.typedClient.set(fullKey, value, { ex: ttl });
             }
             else {
-                await this.client.set(fullKey, value);
+                await this.typedClient.set(fullKey, value);
             }
             return true;
         }
@@ -82,10 +85,10 @@ export class VercelKVCache {
         try {
             const fullKey = this.namespace ? `${this.namespace}:${key}` : key;
             if (ttl) {
-                await this.client.set(fullKey, JSON.stringify(value), { ex: ttl });
+                await this.typedClient.set(fullKey, JSON.stringify(value), { ex: ttl });
             }
             else {
-                await this.client.set(fullKey, JSON.stringify(value));
+                await this.typedClient.set(fullKey, JSON.stringify(value));
             }
             return true;
         }
@@ -99,7 +102,7 @@ export class VercelKVCache {
             return null;
         try {
             const fullKey = this.namespace ? `${this.namespace}:${key}` : key;
-            const value = await this.client.get(fullKey);
+            const value = await this.typedClient.get(fullKey);
             if (value && typeof value === "string") {
                 return JSON.parse(value);
             }
@@ -115,7 +118,7 @@ export class VercelKVCache {
             return false;
         try {
             const fullKey = this.namespace ? `${this.namespace}:${key}` : key;
-            await this.client.del(fullKey);
+            await this.typedClient.del(fullKey);
             return true;
         }
         catch (error) {

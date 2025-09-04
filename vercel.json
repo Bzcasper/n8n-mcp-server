@@ -1,7 +1,12 @@
 {
   "buildCommand": "npm run build",
   "version": 2,
-  "rewrites": [{ "source": "/(.+)", "destination": "/api/server" }],
+  "rewrites": [
+    {
+      "source": "/((?!favicon\\.ico|apple-touch-icon\\.png|manifest\\.json|analytics/|api/|config/|errors/|postgres/|redis/|resources/|tools/).*)",
+      "destination": "/api/server"
+    }
+  ],
   "headers": [
     {
       "source": "/(.+)",
